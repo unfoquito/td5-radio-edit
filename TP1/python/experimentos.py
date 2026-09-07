@@ -492,25 +492,40 @@ def figuras_e1():
 
     # Pregunta: hasta que n llega cada exacto con k = n/2 y como crece el tiempo,
     # contrastando FB con su cota C(n-2, k-2) k d (misma constante en los tres paneles).
-    fig, ejes = fg.figura(paneles=3)
+    # Un solo panel: FB y PD hacen el mismo trabajo en las tres familias, asi que se
+    # dibujan una vez (familia con estructura) y solo BT lleva un marcador por familia.
+    # El ancho fisico (3,2 pulgadas) es el que ocupa en el informe, para que las fuentes
+    # de 8 a 9 pt se impriman a ese tamano.
+    fig, ejes = fg.figura(paneles=1, ancho=3.2, alto=2.1)
+    ax = ejes[0]
     c_fb = constante_modelo_fb(filas_ok(filas, regimen="n/2", algoritmo="fb"))
-    for ax, familia in zip(ejes, FAMILIAS):
-        for algoritmo in ["fb", "bt", "pd"]:
-            puntos = filas_ok(filas, familia=familia, regimen="n/2", algoritmo=algoritmo)
-            puntos.sort(key=lambda f: int(f["n"]))
-            if not puntos:
-                continue
-            ns = [int(f["n"]) for f in puntos]
-            fg.serie(ax, ns, [float(f["ms"]) for f in puntos], algoritmo)
-            if algoritmo == "fb":
-                ax.plot(ns, [c_fb * modelo_fb(int(f["n"]), int(f["k"]), int(f["d"])) for f in puntos],
-                        "--", color=fg.PALETA["modelo"], linewidth=1.0, marker=None,
-                        label="Modelo FB")
-        ax.set_yscale("log")
-        ax.set_xlabel("n (pulsos)")
-        ax.set_title(fg.FAMILIAS_TITULO[familia])
-    ejes[0].set_ylabel("tiempo (ms)")
-    fg.leyenda_abajo(fig, ejes[0], columnas=4)
+    manejadores = []
+    for algoritmo in ["fb", "pd"]:
+        puntos = filas_ok(filas, familia="estructura", regimen="n/2", algoritmo=algoritmo)
+        puntos.sort(key=lambda f: int(f["n"]))
+        if not puntos:
+            continue
+        ns = [int(f["n"]) for f in puntos]
+        manejadores.append(ax.plot(ns, [float(f["ms"]) for f in puntos], "-", color=fg.PALETA[algoritmo],
+                                   label=fg.ETIQUETAS[algoritmo])[0])
+        if algoritmo == "fb":
+            # La cota va sin entrada en la leyenda: el caption la describe.
+            ax.plot(ns, [c_fb * modelo_fb(int(f["n"]), int(f["k"]), int(f["d"])) for f in puntos],
+                    "--", color=fg.PALETA["modelo"], linewidth=1.0)
+    for familia in FAMILIAS:
+        puntos = filas_ok(filas, familia=familia, regimen="n/2", algoritmo="bt")
+        puntos.sort(key=lambda f: int(f["n"]))
+        if not puntos:
+            continue
+        linea = ax.plot([int(f["n"]) for f in puntos], [float(f["ms"]) for f in puntos], "-",
+                        color=fg.PALETA["bt"], marker=fg.MARCADORES[familia], markersize=3.5, alpha=0.9)[0]
+        if familia == FAMILIAS[0]:
+            from matplotlib.lines import Line2D
+            manejadores.insert(1, Line2D([], [], color=fg.PALETA["bt"], label=fg.ETIQUETAS["bt"]))
+    ax.set_yscale("log")
+    ax.set_xlabel("n (pulsos), k = n/2")
+    ax.set_ylabel("tiempo (ms)")
+    fg.leyenda_abajo_manejadores(fig, manejadores + fg.manejadores_familias(), columnas=2)
     fg.guardar(fig, "e1_tiempo_vs_n")
 
     # Pregunta: como cambia el tiempo de FB y de PD con el regimen de k. Se grafica la
@@ -637,6 +652,42 @@ def resumen_e2(filas):
     tabla.copiar_a_datos()
 
 
+def figura_e2_vs_n(filas):
+    """Nodos visitados contra n con k = n/2 en un solo panel del ancho que ocupa en el
+    informe. Sin podas y con solo factibilidad la cuenta es exacta e igual en las tres
+    familias, asi que se dibuja una vez; con optimalidad el color da la configuracion y
+    el marcador la familia."""
+    import figuras as fg
+    from math import comb
+    from matplotlib.lines import Line2D
+    pares = sorted({(int(f["n"]), int(f["k"])) for f in filas_ok(filas, serie="vs_n")})
+    if not pares:
+        return
+    fig, ejes = fg.figura(paneles=1, ancho=3.45, alto=2.3)
+    ax = ejes[0]
+    xs = [p[0] for p in pares]
+    ax.plot(xs, [nodos_bt_teoricos(n, k, False) for n, k in pares], "--", color=fg.PALETA["modelo"],
+            linewidth=1.0, zorder=1)
+    ax.plot(xs, [comb(n - 2, k - 2) for n, k in pares], ":", color=fg.PALETA["modelo"], linewidth=1.2, zorder=1)
+    manejadores = []
+    for configuracion in CONFIGURACIONES_BT:
+        familias = [FAMILIAS[1]] if configuracion in ("ninguna", "factibilidad") else FAMILIAS
+        for familia in familias:
+            puntos = filas_ok(filas, familia=familia, serie="vs_n", configuracion=configuracion)
+            puntos.sort(key=lambda f: int(f["n"]))
+            if not puntos:
+                continue
+            marcador = fg.MARCADORES[familia] if len(familias) > 1 else None
+            ax.plot([int(f["n"]) for f in puntos], [int(f["nodos"]) for f in puntos], "-",
+                    color=fg.PALETA[configuracion], marker=marcador, markersize=3.5, alpha=0.9)
+        manejadores.append(Line2D([], [], color=fg.PALETA[configuracion], label=fg.ETIQUETAS[configuracion]))
+    ax.set_yscale("log")
+    ax.set_xlabel("n (pulsos), k = n/2")
+    ax.set_ylabel("nodos visitados")
+    fg.leyenda_abajo_manejadores(fig, manejadores + fg.manejadores_familias(), columnas=3)
+    fg.guardar(fig, "e2_nodos_vs_n")
+
+
 def figuras_e2():
     filas = leer_csv("e2_podas.csv")
     if not filas:
@@ -647,7 +698,8 @@ def figuras_e2():
     # Pregunta: cuantos nodos ahorra cada poda (vs n con k = n/2, y vs k con n = 24) y si
     # depende de la familia. Las referencias son la cuenta exacta de nodos sin podas y la
     # cantidad de hojas factibles C(n-2, k-2), que es lo que enumera fuerza bruta.
-    for serie, variable, nombre in [("vs_n", "n", "e2_nodos_vs_n"), ("vs_k", "k", "e2_nodos_vs_k")]:
+    figura_e2_vs_n(filas)
+    for serie, variable, nombre in [("vs_k", "k", "e2_nodos_vs_k")]:
         fig, ejes = fg.figura(paneles=3)
         for ax, familia in zip(ejes, FAMILIAS):
             pares = sorted({(int(f["n"]), int(f["k"])) for f in filas_ok(filas, familia=familia, serie=serie)})
@@ -775,33 +827,33 @@ def figuras_e3():
     # memoria pico como k (n-k+1).
     puntos = sorted(filas_ok(filas, serie="vs_n"), key=lambda f: int(f["n"]))
     if len(puntos) >= 2:
-        fig, ejes = fg.figura(paneles=2, compartir_y=False)
+        # Ancho fisico igual al que ocupa en el informe (0,62 del ancho de texto).
+        fig, ejes = fg.figura(paneles=2, compartir_y=False, ancho=3.9, alto=1.8)
         ns = [int(f["n"]) for f in puntos]
         ms = [float(f["ms"]) for f in puntos]
         escala = escala_modelo(puntos)
         _, pendiente, _ = ajuste_lineal([math.log(n) for n in ns], [math.log(m) for m in ms])
-        fg.serie(ejes[0], ns, [m / 1000 for m in ms], "pd", etiqueta="medido (mediana de 3)")
+        fg.serie(ejes[0], ns, [m / 1000 for m in ms], "pd", etiqueta="medido")
         ejes[0].plot(ns, [escala * float(f["modelo_ops"]) / 1000 for f in puntos], "--",
-                     color=fg.PALETA["modelo"], label=etiqueta_modelo)
+                     color=fg.PALETA["modelo"], label="modelo ajustado")
         # Ticks en potencias redondas: 750 y 1000 se pisan si se etiquetan los n medidos.
-        fg.eje_x_log(ejes[0], [n for n in ns if n in (250, 500, 1000, 2000, 3000)] or ns)
+        fg.eje_x_log(ejes[0], [n for n in ns if n in (250, 500, 1000, 3000)] or ns)
         ejes[0].set_yscale("log")
         from matplotlib.ticker import FuncFormatter
         ejes[0].yaxis.set_major_formatter(FuncFormatter(lambda v, _: ("{:g}".format(v)).replace(".", ",")))
         ejes[0].set_xlabel("n (pulsos), k = n/2")
         ejes[0].set_ylabel("tiempo (s)")
-        ejes[0].text(0.97, 0.05, "pendiente log-log: {:.2f}".format(pendiente).replace(".", ","),
+        ejes[0].text(0.97, 0.05, "pendiente: {:.2f}".format(pendiente).replace(".", ","),
                      transform=ejes[0].transAxes, ha="right", va="bottom", fontsize=8)
         fg.leyenda(ejes[0], loc="upper left")
         memorias = memorias_de(puntos, "n")
         if memorias:
-            fg.serie(ejes[1], [m[0] for m in memorias], [m[1] for m in memorias], "pd", etiqueta="medido (maxrss)")
+            fg.serie(ejes[1], [m[0] for m in memorias], [m[1] for m in memorias], "pd", etiqueta="medido")
             ajuste = modelo_memoria(puntos)
             if ajuste:
                 base, por_estado, _ = ajuste
                 ejes[1].plot(ns, [base + por_estado * int(f["k"]) * (int(f["n"]) - int(f["k"]) + 1) for f in puntos],
-                             "--", color=fg.PALETA["modelo"],
-                             label="{:.1f} MB + {:.1f} B · k(n-k+1)".format(base, por_estado * 2 ** 20).replace(".", ","))
+                             "--", color=fg.PALETA["modelo"], label="ajuste lineal")
         ejes[1].set_xlabel("n (pulsos), k = n/2")
         ejes[1].set_ylabel("memoria pico (MB)")
         ejes[1].set_ylim(bottom=0)
@@ -943,7 +995,9 @@ def figuras_e4():
 
     cocientes = leer_csv("e4_cocientes.csv")
     if cocientes:
-        fig, ejes = fg.figura(paneles=1)
+        # Ancho fisico igual al que ocupa en el informe (0,42 del ancho de texto); las
+        # medianas van en el caption.
+        fig, ejes = fg.figura(paneles=1, ancho=2.65, alto=2.2)
         for algoritmo in ["bt", "pd"]:
             puntos = sorted([f for f in cocientes if f["algoritmo"] == algoritmo], key=lambda f: int(f["n"]))
             if not puntos:
@@ -954,7 +1008,6 @@ def figuras_e4():
             if estables:
                 mediana = statistics.median(estables)
                 ejes[0].axhline(mediana, color=fg.PALETA[algoritmo], linestyle=":", linewidth=1.0, alpha=0.8)
-                etiqueta += " (mediana {:.0f} para n ≥ 100)".format(mediana)
             fg.serie(ejes[0], [int(f["n"]) for f in puntos], [float(f["cociente"]) for f in puntos],
                      algoritmo, etiqueta=etiqueta)
         fg.eje_x_log(ejes[0], [int(f["n"]) for f in cocientes])
@@ -1128,7 +1181,8 @@ def figura_estructura(base, costos, seleccion, fronteras=None):
     import numpy as np
     import figuras as fg
     n = costos.shape[1]
-    fig, ejes = fg.figura(paneles=1, ancho=5.0, alto=4.8)
+    # Ancho fisico igual al que ocupa en el informe (0,42 del ancho de texto).
+    fig, ejes = fg.figura(paneles=1, ancho=2.65, alto=2.3)
     ax = ejes[0]
     ax.grid(False)
     # fila i (base 1, 1..n-1) y columna j (1..n): distancia entre el pulso que deberia
@@ -1164,7 +1218,7 @@ def figura_estructura(base, costos, seleccion, fronteras=None):
                                                      if segundos[0] - 1 <= t <= segundos[-1]]))
         arriba.set_xlabel("tiempo en la grabación (s)")
     if manejadores:
-        fig.legend(handles=manejadores, loc="outside lower center", ncol=2)
+        fig.legend(handles=manejadores, loc="outside lower center", ncol=1)
     fg.guardar(fig, "e5_estructura_" + base)
 
 
@@ -1180,7 +1234,12 @@ def figuras_e5():
     orden = list(AUDIO_DE)
     claves = sorted(set((f["nombre"], f["caracteristicas"]) for f in filas),
                     key=lambda c: (c[1] != "croma", orden.index(c[0]) if c[0] in orden else 99))
-    etiquetas = [nb.replace("_", " ") + (" (mfcc)" if car == "mfcc" else "") for nb, car in claves]
+    # Nombres cortos para que las etiquetas rotadas no se coman el alto del panel.
+    cortos = {"action": "Action", "ascending_the_vale": "Asc. the Vale", "batty_mcfaddin": "Batty McF.",
+              "hgf_corta": "HGF corta", "hgf_media": "HGF media", "hgf_larga": "HGF larga",
+              "suspense": "Suspense"}
+    etiquetas = [cortos.get(nb, nb.replace("_", " ")) + (" (MFCC)" if car == "mfcc" else "")
+                 for nb, car in claves]
 
     def valor(nombre, car, proporcion, columna):
         fila = [f for f in filas if f["nombre"] == nombre and f["caracteristicas"] == car
@@ -1188,7 +1247,8 @@ def figuras_e5():
         return float(fila[0][columna]) if fila else np.nan
 
     if claves:
-        fig, ejes = fg.figura(paneles=2, compartir_y=False, alto=3.1)
+        # Ancho fisico igual al que ocupa en el informe (0,55 del ancho de texto).
+        fig, ejes = fg.figura(paneles=2, compartir_y=False, ancho=3.45, alto=2.7)
         ancho = 0.27
         x = np.arange(len(claves))
         for desplazamiento, proporcion, alfa in zip([-ancho, 0, ancho], PROPORCIONES_E5, fg.ALFAS_TRES):
@@ -1197,13 +1257,13 @@ def figuras_e5():
             vs_uniforme = [valor(nb, car, proporcion, "costo_uniforme") / valor(nb, car, proporcion, "costo_optimo")
                            for nb, car in claves]
             ejes[0].bar(x + desplazamiento, vs_truncar, width=ancho, color=fg.PALETA["optimo"], alpha=alfa,
-                        label="k = {:.0f} % de n".format(100 * proporcion))
+                        label="k = {:.0f} %".format(100 * proporcion))
             ejes[1].bar(x + desplazamiento, vs_uniforme, width=ancho, color=fg.PALETA["optimo"], alpha=alfa)
         ejes[0].axhline(1, color=fg.PALETA["truncar"], lw=0.8, ls="--")
-        ejes[0].set_ylabel("costo óptimo / truncar")
+        ejes[0].set_ylabel("óptimo / truncar")
         ejes[0].set_ylim(0, 1.05)
         ejes[1].set_yscale("log")
-        ejes[1].set_ylabel("costo uniforme / óptimo")
+        ejes[1].set_ylabel("uniforme / óptimo")
         for ax in ejes:
             ax.set_xticks(x)
             ax.set_xticklabels(etiquetas, rotation=60, ha="right", fontsize=7)
@@ -1321,11 +1381,13 @@ def figuras_e6():
 
     # Pregunta: hasta que n llega cada exacto en un tema real y si el tiempo sigue
     # el modelo de operaciones de cada uno (FB: C(n-2,k-2) k d; PD: (k-2)(n-k+1)^2 d).
-    fig, ejes = fg.figura(paneles=1, alto=3.6)
+    # Ancho fisico igual al que ocupa en el informe (0,47 del ancho de texto); las
+    # formulas de los modelos van en el caption.
+    fig, ejes = fg.figura(paneles=1, ancho=3.0, alto=2.1)
     ax = ejes[0]
     # (modelo, n minimo del ajuste, n desde donde se dibuja, etiqueta)
-    modelos = {"fb": (modelo_fb, 16, 12, "modelo FB, C(n-2,k-2) k d"),
-               "pd": (modelo_pd, 100, 40, "modelo PD, (k-2)(n-k+1)² d")}
+    modelos = {"fb": (modelo_fb, 16, 12, "modelo FB"),
+               "pd": (modelo_pd, 100, 40, "modelo PD")}
     for algoritmo in ["fb", "bt", "pd"]:
         puntos = puntos_de(algoritmo)
         if not puntos:
@@ -1342,9 +1404,9 @@ def figuras_e6():
     ax.set_yscale("log")
     ns_todos = sorted(set(int(f["n"]) for f in filas_ok(filas)))
     fg.eje_x_log(ax, [n for n in ticks if ns_todos[0] <= n <= ns_todos[-1] * 1.1])
-    ax.set_xlabel("n (primeros pulsos de {}), k = 0,7 n".format(INSTANCIA_E6.replace("_", " ")))
+    ax.set_xlabel("n (primeros pulsos), k = 0,7 n")
     ax.set_ylabel("tiempo (ms)")
-    fg.leyenda_abajo(fig, ax, columnas=3)
+    fg.leyenda_abajo(fig, ax, columnas=2)
     fg.guardar(fig, "e6_tiempos_reales")
 
     # Pregunta: por que BT es erratico en el tema real. Nodos visitados y cociente

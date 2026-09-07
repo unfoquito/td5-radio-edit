@@ -74,7 +74,7 @@ plt.rcParams.update({
     "font.size": 9,
     "axes.labelsize": 9,
     "axes.titlesize": 9,
-    "legend.fontsize": 8,
+    "legend.fontsize": 7.5,
     "xtick.labelsize": 8,
     "ytick.labelsize": 8,
     "lines.linewidth": 1.4,
@@ -127,6 +127,21 @@ def leyenda_abajo(fig, ax, columnas=None):
     if manejadores:
         fig.legend(manejadores, etiquetas, loc="outside lower center",
                    ncol=columnas or len(manejadores))
+
+
+def manejadores_familias():
+    """Entradas de leyenda en negro, una por familia sintetica, cuando el color ya
+    codifica otra cosa (algoritmo o configuracion de podas) y el marcador la familia."""
+    from matplotlib.lines import Line2D
+    return [Line2D([], [], color="#333333", linestyle="none", marker=MARCADORES[familia],
+                   markersize=4, label=FAMILIAS_TITULO[familia])
+            for familia in ["uniforme", "estructura", "adversarial"]]
+
+
+def leyenda_abajo_manejadores(fig, manejadores, columnas):
+    """Leyenda unica debajo del panel a partir de manejadores explicitos."""
+    fig.legend(handles=manejadores, loc="outside lower center", ncol=columnas,
+               handlelength=1.6, columnspacing=1.0)
 
 
 def eje_x_log(ax, valores):
