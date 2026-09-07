@@ -1,0 +1,180 @@
+\section{Experimentación}
+\label{sec:experimentacion}
+
+La experimentación responde hasta qué tamaño de instancia llega cada algoritmo exacto y cuál de ellos, en qué implementación y en qué lenguaje, conviene usar en la práctica. La sección~\ref{sec:e1} mide hasta dónde llega cada algoritmo exacto, en instancias sintéticas y en prefijos de una grabación real, la~\ref{sec:e2} aísla el efecto de cada poda, la~\ref{sec:e3} verifica el modelo de tiempo y memoria de la programación dinámica, la~\ref{sec:e4} compara C++ con Python sobre el mismo algoritmo y la~\ref{sec:e5} aplica la programación dinámica a grabaciones reales frente a truncar y a muestrear.
+
+\subsection{Instancias}
+\label{sec:datasets}
+
+Las instancias sintéticas provienen de tres familias con $d = 12$, la dimensión del croma de las instancias reales, generadas con \texttt{generador.py} a partir de una semilla que es función de la familia, $n$, $k$ y $d$. En la familia \emph{uniforme} cada pulso es un punto uniforme en $[0,1]^{12}$, así que todos los saltos cuestan parecido (norma cercana a 1,4) y sirve de control sin estructura. En la familia \emph{con estructura} los pulsos siguen el patrón de secciones ABBCBB, con un vector base uniforme en $[0,1]^{12}$ por letra más ruido gaussiano de desvío 0,05 por componente. Imita una canción con estrofas y estribillos repetidos, tiene saltos casi gratis entre secciones con la misma letra y es el caso de uso del problema. En la familia \emph{adversarial} los pulsos son $n$ vértices distintos del hipercubo $\{0,1\}^{12}$ en orden aleatorio, por lo que no hay dos pulsos parecidos y todo salto cuesta al menos 1. Se la diseñó como peor caso para las podas de backtracking, aunque el experimento de podas muestra que la familia difícil para la cota de optimalidad termina siendo la uniforme.
+
+Las instancias reales salen de las siete grabaciones de dominio público o con licencia Creative Commons de la tabla~\ref{tab:grabaciones}. Los pulsos son los tiempos que detecta \texttt{librosa} y el vector de cada pulso es el promedio de las características entre dos tiempos consecutivos. Para los tres temas de Kevin MacLeod se usó el croma, que resume la energía en las doce clases de altura y describe la armonía, así que dos pulsos con el mismo acorde quedan cerca. En los diálogos de \emph{His Girl Friday} y en el radioteatro \emph{Suspense} el croma tiene poco sentido porque la voz hablada no tiene armonía, por lo que esas cuatro grabaciones se extrajeron también con los primeros doce coeficientes MFCC, que describen la envolvente espectral y distinguen timbres y voces. Quedan once instancias, siete con croma y cuatro con MFCC, con $n$ entre 183 y 645 pulsos y $d = 12$ en todas.
+
+\begin{table}[tbp]
+\centering
+\caption{Grabaciones usadas en la experimentación, con la cantidad de pulsos $n$ y la duración cubierta por cada instancia.}
+\label{tab:grabaciones}
+\footnotesize
+\begin{tabular}{llrr}
+\toprule
+Grabación & Origen y licencia & $n$ & Duración (s) \\
+\midrule
+Action & Kevin MacLeod, CC BY 3.0 & 347 & 190,2 \\
+Ascending the Vale & Kevin MacLeod, CC BY 3.0 & 384 & 247,6 \\
+Batty McFaddin & Kevin MacLeod, CC BY 3.0 & 497 & 200,5 \\
+His Girl Friday, escena corta (HGF corta) & Columbia, 1940, dominio público & 183 & 89,9 \\
+His Girl Friday, escena media (HGF media) & Columbia, 1940, dominio público & 431 & 199,9 \\
+His Girl Friday, escena larga (HGF larga) & Columbia, 1940, dominio público & 620 & 359,9 \\
+Suspense, The Hitch-Hiker & CBS Radio, 1942, CC BY-NC-ND 3.0 & 645 & 239,9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Metodología}
+\label{sec:metodologia}
+
+Todas las mediciones se hicieron en una Apple M3 Pro con 18 GB de memoria y macOS 26.5, con el binario compilado por Apple clang 17 con \texttt{-O2 -ffp-contract=off} y con CPython 3.11.15 para la versión en Python. Cada tiempo es la mediana de tres corridas del cronómetro interno de cada programa (\texttt{steady\_clock} en C++, \texttt{perf\_counter} en Python), que abarca solo la resolución y excluye la lectura de la instancia. Cada corrida se lanza como subproceso con un límite de 60 s (150 s en los experimentos de escalado y de lenguajes), que ninguna medición final agotó porque los rangos de $n$ se calibraron antes. La memoria pico es el \texttt{maxrss} del proceso medido con \texttt{getrusage}.
+
+\subsection{Alcance de los algoritmos exactos}
+\label{sec:e1}
+
+Fuerza bruta deja de ser utilizable alrededor de los 32 pulsos, mientras que backtracking con ambas podas y programación dinámica resuelven en microsegundos todo el rango en el que fuerza bruta todavía termina. Los tres algoritmos devolvieron el mismo costo óptimo en las 93 instancias sintéticas. Con $k = n/2$ fuerza bruta tardó 21,3 s en $n = 32$, donde enumera $\binom{30}{14} = \num{145422675}$ combinaciones, con $k = n/4$ llegó a $n = 40$ en 5,5 s y con $k = 3n/4$ a $n = 36$ en 9,5 s (tabla~\ref{tab:e1-frontera}). En esos mismos puntos backtracking tardó entre 0,004 y 0,048 ms visitando entre 15 y 348 nodos, mientras que programación dinámica tardó entre 0,017 y 0,046 ms, entre cinco y seis órdenes de magnitud por debajo de fuerza bruta. El crecimiento de fuerza bruta coincide con la cota $\binom{n-2}{k-2}\,k\,d$ (figura~\ref{fig:e1-tiempo}), con un factor de 2,034 por pulso adicional ajustado sobre $n \ge 18$ con $k = n/2$, contra 2,035 teórico entre $n = 30$ y $n = 32$, así que $n = 34$ tardaría 88 s.
+
+\begin{table}[tbp]
+\centering
+\caption{Mayor $n$ medido por régimen de $k$ y tiempos de los tres algoritmos exactos en ese punto ($d = 12$, mediana de tres corridas). Los rangos abarcan las tres familias. FB, BT y PD abrevian fuerza bruta, backtracking y programación dinámica.}
+\label{tab:e1-frontera}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Régimen & $n$ & $k$ & $\binom{n-2}{k-2}$ & FB (s) & BT (ms) & Nodos BT & PD (ms) \\
+\midrule
+$k = n/4$  & 40 & 10 & \num{48903492} & 5,5 & 0,012 a 0,048 & 82 a 348 & 0,044 a 0,046 \\
+$k = n/2$  & 32 & 16 & \num{145422675} & 21,3 a 21,4 & 0,004 a 0,033 & 15 a 323 & 0,024 \\
+$k = 3n/4$ & 36 & 27 & \num{52451256} & 9,5 & 0,007 a 0,022 & 69 a 307 & 0,017 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e1_tiempo_vs_n}
+\caption{}
+\label{fig:e1-tiempo}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.47\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e6_tiempos_reales}
+\caption{}
+\label{fig:e6-tiempos}
+\end{subfigure}
+\caption{Tiempo de resolución de los tres algoritmos exactos (mediana de tres corridas, escala logarítmica). (a) Instancias sintéticas con $k = n/2$ y $d = 12$. Fuerza bruta y programación dinámica aparecen una sola vez (familia con estructura) porque su trabajo no depende de los datos, mientras que backtracking lleva un marcador por familia. La línea de trazos es la cota $c \cdot \binom{n-2}{k-2} k d$ con $c = 0{,}79$ ns. (b) Primeros $n$ pulsos de \emph{Batty McFaddin} con $k = 0{,}7\,n$, ambos ejes logarítmicos. Las líneas de trazos son los modelos $\binom{n-2}{k-2} k d$ y $(k-2)(n-k+1)^2 d$ escalados a 0,64 y 0,47 ns por operación.}
+\label{fig:e1-e6}
+\end{figure}
+
+Sobre datos reales la frontera de fuerza bruta es la misma y backtracking deja de acompañar a la programación dinámica. Sobre los primeros $n$ pulsos de \emph{Batty McFaddin} con $k = 0{,}7\,n$, fuerza bruta llegó a $n = 34$ en 11,1 s con un factor de 1,85 por pulso adicional, mientras que backtracking y programación dinámica resolvieron los 27 prefijos hasta el tema completo de 497 pulsos con el mismo costo (figura~\ref{fig:e6-tiempos}). Programación dinámica tardó 43,8 ms en el tema completo, con un tiempo que a partir de $n = 100$ sigue el modelo $(k-2)(n-k+1)^2 d$ con entre 0,454 y 0,471 ns por operación, el mismo valor que en las instancias sintéticas. Backtracking tardó 214 ms en el tema completo con \num{165750} nodos, pero no es monótono en $n$, con el peor cociente en $n = 350$, donde tardó 681 ms contra 15,0 ms de programación dinámica, 45 veces más. La cota inicial y la poda de optimalidad rinden según dónde caen las repeticiones del tema dentro del prefijo, así que el zigzag puede ser distinto en otro tema.
+
+\subsection{Efecto de las podas}
+\label{sec:e2}
+
+Las dos podas ahorran cantidades de nodos de órdenes distintos y solo la de optimalidad depende de la familia. Sin podas, backtracking visita las $\sum_{t<k}\binom{n-1}{t}$ selecciones parciales que empiezan en el pulso 1, exactamente $2^{n-2}$ con $k = n/2$. La cuenta medida coincide con esa fórmula hasta los \num{67108864} nodos de $n = 28$ (figura~\ref{fig:e2-nodos}). La poda de factibilidad deja $1 + \sum_{t=2}^{k-1}\binom{n-k+t-1}{t-1} + \binom{n-2}{k-2}$ nodos, también exacto, lo que reduce la cuenta en un factor 2,48 en $n = 28$ pero conserva el crecimiento exponencial con base 1,97 por pulso, porque solo evita las ramas que no pueden llegar a $n$ con $k$ pulsos. La poda de optimalidad rompe el crecimiento exponencial. Con ambas podas se visitan 261 nodos en $n = 28$ en la familia uniforme, 45 con estructura y 56 en la adversarial, entre 257 mil y 1,5 millones de veces menos que sin podas, mientras que la poda de optimalidad sola visita 422, 71 y 76, casi lo mismo que las dos juntas. La familia con más nodos es la uniforme (media geométrica de 36 nodos contra 23 con estructura y 16 en adversarial), porque en la grilla adversarial todo salto cuesta al menos 1 y el óptimo vale 1 en diez de las once instancias, así que apenas la cota alcanza ese valor toda rama con un salto se descarta, mientras que en la uniforme los costos son continuos. El costo devuelto es el mismo en las cuatro configuraciones en las 66 instancias, así que las podas no descartan óptimos.
+
+\begin{figure}[tbp]
+\centering
+\begin{subfigure}[b]{0.55\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e2_nodos_vs_n}
+\caption{}
+\label{fig:e2-nodos}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.42\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e4_cociente}
+\caption{}
+\label{fig:e4-cociente}
+\end{subfigure}
+\caption{Nodos visitados por backtracking según las podas (a) y cociente de tiempos entre lenguajes (b). (a) Nodos en función de $n$ con $k = n/2$ y $d = 12$, escala logarítmica, con un color por configuración de podas y un marcador por familia (sin podas y con solo factibilidad la cuenta no depende de la familia). La línea de trazos es la cuenta exacta sin podas $2^{n-2}$ y la punteada las hojas factibles $\binom{n-2}{k-2}$. (b) Cociente entre el tiempo de Python y el de C++ para el mismo algoritmo sobre la misma instancia (familia con estructura, $d = 12$, $k = n/2$, mediana de tres corridas en cada lenguaje), con la mediana para $n \geq 100$ en línea punteada (116 para backtracking y 108 para programación dinámica).}
+\label{fig:e2-e4}
+\end{figure}
+
+El ahorro en tiempo es entre nueve y doce veces menor que el ahorro en nodos según la familia. Sin podas y con solo factibilidad el costo por nodo queda entre 10,5 y 11,8 ns desde $n = 14$, por lo que el tiempo se duplica con cada pulso y llega a 703 ms en $n = 28$ frente a 0,024 ms con ambas podas. Con la poda de optimalidad cada nodo recorre candidatos cuyo costo se calcula y se descarta sin recursión, lo que sube el costo por nodo a entre 70 y 260 ns según la familia.
+
+\subsection{Escalado de la programación dinámica}
+\label{sec:e3}
+
+El tiempo de la programación dinámica en C++ crece de forma cúbica en $n$ cuando $k = n/2$, como predicen tanto la cota $k n^2 d$ como el modelo de la implementación $n d + (k-2)(n-k+1)^2 d$. Con $d = 12$ y la familia con estructura, la mediana de tres corridas pasa de 10,8 ms en $n = 250$ a 655 ms en $n = 1000$ y a 18,1 s en $n = 3000$. Cada vez que $n$ se duplica el tiempo se multiplica por un factor entre 7,7 y 8,1, mientras que el ajuste con ambos ejes logarítmicos de la figura~\ref{fig:e3-vs-n} da pendiente 2,99. El cociente entre el tiempo y las operaciones del modelo se mantiene entre 0,44 y 0,46 ns por operación en todo el rango, lo que indica que el modelo captura el crecimiento sin términos ocultos. La memoria pico sube de 1,6 MB a 10,8 MB, con 4,3 bytes por cada uno de los $k(n-k+1)$ estados de la tabla de predecesores sobre una base de 1,6 MB del proceso.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.52\linewidth]{e3_pd_vs_n}
+\caption{Programación dinámica en C++ con $k = n/2$ sobre instancias con estructura ($d = 12$). Izquierda, tiempo de resolución (mediana de tres corridas, ambos ejes logarítmicos) junto al modelo $(k-2)(n-k+1)^2 d$ ajustado por un factor de escala. Derecha, memoria pico del proceso y el ajuste lineal en $k(n-k+1)$.}
+\label{fig:e3-vs-n}
+\end{figure}
+
+La dependencia en $k$ no es monótona y la dependencia en $d$ es proporcional recién a partir de $d = 8$. Con $n = 1000$ el tiempo crece desde 0,015 ms en $k = 2$ hasta un máximo de 779 ms en $k = 350$ y vuelve a 0,037 ms en $k = n$, porque cada fila de la tabla recorre solo los $n-k+1$ índices alcanzables. El modelo tiene su máximo en $k = (n+5)/3 = 335$ y sigue la curva completa con los mismos 0,44 ns por operación, mientras que la cota $k n^2 d$ es creciente en $k$ y predice el mayor tiempo justamente en $k = n$. En $d$, con $n = 1000$ y $k = 500$ el tiempo va de 212 ms en $d = 1$ a 1791 ms en $d = 32$, proporcional a $d$ a partir de $d = 8$, mientras que por debajo el tiempo crece menos que el trabajo. De $d = 1$ a $d = 8$ las coordenadas se multiplican por ocho y el tiempo solo por 2,2, porque en $d = 1$ cada par evaluado cuesta 3,4 ns, muy por encima de los 0,9 ns por par y por coordenada que agrega cada dimensión a partir de $d = 8$.
+
+\subsection{C++ contra Python}
+\label{sec:e4}
+
+Python tarda alrededor de cien veces más que C++ con el mismo algoritmo, con un cociente que no depende de $n$ una vez que las instancias superan los cien pulsos. Sobre instancias con estructura, $d = 12$ y $k = n/2$, el cociente fue de 114,6 a 120,2 para backtracking con ambas podas con $n$ de 100 a 800 (mediana 116) y de 104,4 a 109,6 para programación dinámica con $n$ de 100 a 1000 (mediana 108), como muestra la figura~\ref{fig:e4-cociente}. Ambas implementaciones visitaron exactamente la misma cantidad de nodos y devolvieron el mismo costo en las doce comparaciones (seis instancias por algoritmo), de modo que la diferencia de tiempo es del lenguaje y no de la cantidad de trabajo. El cociente incluye el costo de replicar la norma en Python puro para conservar la coincidencia bit a bit. Con \texttt{math.dist} el ciclo interno sería unas nueve veces más rápido y el cociente bajaría sin cambiar el orden de magnitud. Para $n = 800$ backtracking tardó 140 ms en C++ contra 16,8 s en Python y para $n = 1000$ la programación dinámica tardó 668 ms contra 73,2 s, de modo que un tema de tres a cuatro minutos se resuelve en menos de 200 ms en C++ y demanda decenas de segundos en Python.
+
+\subsection{Audio real}
+\label{sec:e5}
+
+En las 33 corridas sobre las once instancias reales la selección óptima cuesta entre un 28\,\% y un 94\,\% menos que truncar, con una mediana del 70\,\%. El cociente entre el costo óptimo y el de truncar, que conserva los primeros $k-1$ pulsos y el último, va de 0,057 en \emph{Ascending the Vale} a 0,72 en la escena larga de \emph{His Girl Friday} con MFCC al 50\,\%, con mediana 0,30 sobre las 33 corridas (figura~\ref{fig:e5}, tabla~\ref{tab:e5-principal}). El muestreo uniforme, que conserva $k$ índices equiespaciados, queda entre 28 y 1015 veces por encima del óptimo (mediana 281 en croma y 265 en MFCC) porque paga un salto por cada pulso descartado, mientras que el óptimo concentra el descarte en uno o dos tramos largos. En las 33 corridas la selección óptima hace un salto en 19 casos y dos en 14, nunca más, con cada salto dentro del 2,4\,\% más barato de todos los saltos posibles de su instancia. En cuatro corridas uno de los dos saltos descarta solo uno o dos pulsos, un corte de menos de un segundo que aparece porque el costo del enunciado no penaliza la cantidad de cortes.
+
+\begin{figure}[tbp]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e5_baselines}
+\caption{}
+\label{fig:e5-baselines}
+\end{subfigure}\hfill
+\begin{subfigure}[b]{0.36\linewidth}
+\centering
+\includegraphics[width=\linewidth]{e5_estructura_ascending_the_vale}
+\caption{}
+\label{fig:e5-matriz}
+\end{subfigure}
+\caption{Programación dinámica sobre audio real. (a) Cociente entre el costo óptimo y el de truncar (izquierda) y entre el costo del muestreo uniforme y el óptimo (derecha, escala logarítmica) en las once instancias con $k$ al 50, 70 y 90\,\% de $n$. (b) Matriz de costos $c(i,j)$ de \emph{Ascending the Vale} (croma, $n = 384$) con el único salto de la selección óptima para $k = 0{,}7\,n$ marcado con un círculo. Las columnas aclaradas son los pulsos descartados y el eje superior traduce el índice de pulso a segundos de la grabación.}
+\label{fig:e5}
+\end{figure}
+
+\begin{table}[tbp]
+\centering
+\caption{Selección óptima frente a truncar con $k = 0{,}7\,n$ en las grabaciones reales. La columna de tramos da el largo en pulsos de cada tramo descartado y la última la duración total descartada en segundos. HGF abrevia \emph{His Girl Friday}. Los costos de croma y MFCC no son comparables entre sí porque están en escalas distintas.}
+\label{tab:e5-principal}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrrlr}
+\toprule
+Instancia & Característica & $n$ & $k$ & Óptimo & Truncar & Cociente & Tramos & Descartado (s) \\
+\midrule
+Action & croma & 347 & 243 & 0,200 & 0,471 & 0,42 & 79 y 25 & 52,8 \\
+Ascending the Vale & croma & 384 & 269 & 0,064 & 1,132 & 0,06 & 115 & 72,6 \\
+Batty McFaddin & croma & 497 & 348 & 0,215 & 0,738 & 0,29 & 125 y 24 & 58,8 \\
+HGF corta & croma & 183 & 128 & 0,289 & 0,507 & 0,57 & 55 & 27,7 \\
+HGF media & croma & 431 & 302 & 0,318 & 0,801 & 0,40 & 129 & 59,9 \\
+HGF larga & croma & 620 & 434 & 0,200 & 0,396 & 0,50 & 186 & 107,1 \\
+Suspense & croma & 645 & 451 & 0,311 & 0,558 & 0,56 & 192 y 2 & 71,9 \\
+\addlinespace
+HGF corta & MFCC & 183 & 128 & 27,19 & 62,23 & 0,44 & 1 y 54 & 27,2 \\
+HGF media & MFCC & 431 & 302 & 25,11 & 82,45 & 0,30 & 129 & 60,5 \\
+HGF larga & MFCC & 620 & 434 & 18,49 & 42,82 & 0,43 & 186 & 109,0 \\
+Suspense & MFCC & 645 & 451 & 18,18 & 53,95 & 0,34 & 194 & 72,2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los saltos que elige la programación dinámica caen entre secciones repetidas del tema. En \emph{Ascending the Vale}, cuya matriz de costos muestra bloques oscuros cada 70 a 80 pulsos (figura~\ref{fig:e5-matriz}), el único salto al 70\,\% va del pulso 122 al 238 y descarta 72,6 s (de 77,1 s a 149,7 s de la grabación) uniendo dos repeticiones de la misma sección, con costo 0,064 frente a 1,132 de truncar. El tiempo de la programación dinámica en C++ fue como máximo 182 ms (\emph{Suspense} con $n = 645$ y $k = 322$) y siguió el modelo de la sección~\ref{sec:e3} con la misma constante.
+
+Croma y MFCC eligen recortes distintos en los diálogos. Al 50\,\% el índice de Jaccard entre los conjuntos de pulsos descartados por una y otra característica va de 0,18 a 0,63 en las cuatro escenas, al 70\,\% cae a 0 en la escena media y en \emph{Suspense} y al 90\,\% es 0 en tres de las cuatro escenas. Como el costo es una distancia euclídea entre vectores de características y no una medida perceptual, el experimento solo muestra que cada característica encuentra pares de pulsos parecidos en lugares distintos de la escena. Decidir cuál corte suena mejor requeriría una prueba de escucha que no se hizo.
+
+\subsection{Resumen de resultados y recomendación}
+\label{sec:recomendacion}
+
+La recomendación del grupo para la práctica es la programación dinámica restringida a los estados alcanzables de la sección~\ref{sec:pd}, implementada en C++, que es la única combinación que resuelve grabaciones enteras en tiempo interactivo con garantía de optimalidad. Fuerza bruta se agota en 32 pulsos, así que sirve como referencia de corrección y nada más. Backtracking con ambas podas resuelve en microsegundos lo que a fuerza bruta le lleva segundos, pero su tiempo depende del contenido, sin monotonía en $n$, hasta ser 45 veces más lento que la programación dinámica en un prefijo de 350 pulsos. La programación dinámica tarda a lo sumo 182 ms en las once instancias reales y 18,1 s en $n = 3000$ con $k = n/2$, con menos de 11 MB de memoria. Python reproduce costos y nodos exactamente pero tarda unas 100 veces más, de modo que queda como verificación cruzada de la implementación en C++ y no como herramienta de uso.
+
+Las limitaciones de la experimentación acotan el alcance de esa recomendación. Todas las mediciones son de una única máquina con demonios del sistema cargando la CPU (promedio de carga cercano a 5,5), aunque la dispersión entre las tres repeticiones quedó por debajo del 8\,\% en los puntos de más de 1 ms, así que en otro hardware pueden cambiar los valores absolutos pero no los cocientes ni los exponentes. Cada punto sintético es una sola instancia por familia y tamaño, suficiente para fuerza bruta y programación dinámica, cuyo trabajo no depende de los datos, pero deja las curvas de backtracking con podas como órdenes de magnitud y no como tendencias. Las siete grabaciones con una única segmentación alcanzan para mostrar que el óptimo mejora a truncar y a muestrear en todas ellas, no para estimar cuánto mejora en general.

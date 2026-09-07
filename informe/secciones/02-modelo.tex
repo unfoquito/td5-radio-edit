@@ -1,0 +1,24 @@
+\section{Modelo del problema}
+\label{sec:modelo}
+
+La instancia del enunciado alcanza para ver qué paga una selección y qué no. Tiene $n = 6$ pulsos con una sola característica cada uno ($d = 1$), de valores $0, 1, 5, 6, 2, 3$, de los que hay que conservar $k = 4$. Reproducir el pulso $i$ y continuar con el pulso $j$ cuesta la distancia entre el pulso que debería haber sonado ($i+1$) y el que efectivamente suena ($j$). La selección $1, 2, 4, 6$ paga $0$ por avanzar de $1$ a $2$, luego $|f_3 - f_4| = |5 - 6| = 1$ por saltar de $2$ a $4$ y $|f_5 - f_6| = |2 - 3| = 1$ por saltar de $4$ a $6$, en total $2$. La selección $1, 2, 3, 6$ salta una sola vez, de $3$ a $6$, pero ese salto cuesta $|f_4 - f_6| = 3$. La selección $1, 2, 5, 6$ también salta una sola vez, de $2$ a $5$, pagando $|f_3 - f_5| = 3$. Las otras tres selecciones posibles, $1, 3, 4, 6$ con costo $5$, $1, 4, 5, 6$ con costo $5$ y $1, 3, 5, 6$ con costo $8$, son peores, así que $1, 2, 4, 6$ es la óptima con costo $2$. Dos saltos baratos valen más que uno caro, porque el costo no cuenta cuántas veces se corta sino cuánto se nota cada corte.
+
+En general, una grabación se representa como una secuencia de $n$ pulsos y cada pulso $i$ lleva un vector de características $f_i \in \mathbb{R}^d$ que resume su contenido armónico y tímbrico en ese instante. Una selección de $k$ pulsos es una secuencia de índices
+\[
+1 = i_1 < i_2 < \dots < i_k = n,
+\]
+de modo que el recorte empieza y termina donde lo hace la grabación original. El costo de reproducir el pulso $i$ y continuar con el pulso $j > i$ es
+\[
+c(i, j) = \lVert f_{i+1} - f_j \rVert_2,
+\]
+la distancia euclídea entre el vector del pulso que debería haber seguido y el del pulso que suena. Se compara $f_{i+1}$ y no $f_i$ con $f_j$ porque la discontinuidad se percibe en el instante del corte, entre lo que el oído espera después de $i$ y lo que recibe. Por eso $c(i, i+1) = 0$ para todo $i$, ya que avanzar al pulso siguiente no es un corte. El costo de una selección es
+\[
+C = \sum_{t=1}^{k-1} c(i_t, i_{t+1}),
+\]
+y el problema pide la selección de $k$ pulsos de costo mínimo. El modelo ignora la duración de cada pulso, la envolvente de la señal y la cantidad de cortes, así que mide la audibilidad de un corte solo por la distancia entre dos vectores y un costo menor no garantiza un corte que suene mejor.
+
+Que avanzar sea gratis significa que una selección solo paga en sus saltos. Los pulsos conservados forman tramos contiguos separados por tramos descartados. Cada tramo descartado, el que va del pulso $i_t + 1$ al $i_{t+1} - 1$, aporta exactamente un término $c(i_t, i_{t+1})$ que depende de sus dos extremos y no de su largo. Como cada salto descarta al menos un pulso, una selección tiene a lo sumo $n - k$ saltos, mientras que conservar todos los pulsos ($k = n$) cuesta $0$. El óptimo tiende a concentrar el descarte en pocos tramos largos unidos en puntos parecidos, pero también puede agregar un salto que descarta uno o dos pulsos si encuentra un par de vectores casi idénticos a esa distancia, lo que en audio es un corte de menos de un segundo que el modelo no penaliza.
+
+El espacio de búsqueda es el de los subconjuntos de $k - 2$ pulsos interiores tomados de los $n - 2$ que no son extremos, es decir $\binom{n-2}{k-2}$ selecciones. En el ejemplo son $\binom{4}{2} = 6$. Con $n = 32$ y $k = 16$ son $\binom{30}{14} = \num{145422675}$, mientras que para uno de los temas reales de este trabajo, con $n = 497$ y $k = 348$, el número supera $10^{130}$.
+
+En la práctica los vectores son cromas de $d = 12$ dimensiones, una energía por cada una de las doce clases de altura de la escala cromática, extraídos de la grabación con un pulso por cada tiempo (beat) que detecta el programa de extracción, con lo que $n$ queda en el orden de los cientos o miles de pulsos, entre 183 y 645 en las instancias reales de este trabajo. En las escenas de diálogo usamos además coeficientes cepstrales en la escala de Mel (MFCC), también con $d = 12$, porque el croma describe armonía y en voz hablada dice poco.

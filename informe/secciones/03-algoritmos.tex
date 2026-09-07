@@ -1,0 +1,137 @@
+% Palabras clave en castellano para los pseudocódigos de esta sección.
+\SetKw{KwY}{y}
+\SetKw{KwO}{o}
+\SetKw{KwHasta}{hasta}
+\SetKw{Salir}{salir del ciclo}
+\SetKw{Continuar}{continuar}
+\SetKwProg{Proc}{Procedimiento}{}{}
+\SetKwFunction{Extender}{Extender}
+
+\section{Algoritmos propuestos}
+\label{sec:algoritmos}
+
+Los tres algoritmos son exactos y comparten la función de costo, de modo que lo que cambia entre ellos es cuántas selecciones parciales examinan antes de llegar al óptimo. Una selección queda determinada por sus $k-2$ pulsos interiores, tomados de $\{2, \ldots, n-1\}$, porque el primero y el último están fijos. Fuerza bruta enumera todos esos subconjuntos, backtracking los construye de a un pulso abandonando los que no pueden mejorar, mientras que programación dinámica aprovecha que el mejor modo de completar un prefijo depende solo de cuántos pulsos lleva y en cuál termina. Para los tres, $c(i,j) = \lVert f_{i+1} - f_j \rVert_2$ es el costo de saltar del pulso $i$ al $j$, cuya evaluación cuesta $O(d)$ salvo en el caso adyacente $c(i,i+1) = 0$, que se resuelve en tiempo constante.
+
+\subsection{Fuerza bruta}
+\label{sec:fb}
+
+Fuerza bruta evalúa cada una de las $\binom{n-2}{k-2}$ selecciones posibles y se queda con la más barata, que en la instancia del enunciado es $1, 2, 4, 6$ con costo $2$ entre las seis selecciones trazadas en la sección~\ref{sec:modelo}. La implementación genera las combinaciones en orden lexicográfico con un esquema iterativo de próxima combinación (algoritmo~\ref{alg:fb}). El vector $\mathit{comb}$ guarda los $m = k-2$ pulsos interiores en orden creciente con el invariante $\mathit{comb}[p] \le (n-1) - (m-1-p)$, que deja lugar para las posiciones siguientes. Para avanzar se incrementa la posición más a la derecha que todavía puede crecer y las siguientes se reinician a valores consecutivos a partir de ella. Cada selección se evalúa de punta a punta y ante empates se conserva la primera encontrada, que es la lexicográficamente menor. Los casos $k = 2$ y $k = n$ no requieren tratamiento aparte porque en ambos la única combinación es la inicial.
+
+\begin{algorithm}[htbp]
+\caption{Fuerza bruta}
+\label{alg:fb}
+\KwIn{$n$, $k$ y la función de costo $c$}
+\KwOut{selección de $k$ pulsos de costo mínimo}
+$m \gets k - 2$\;
+$\mathit{comb} \gets (2, 3, \ldots, m+1)$\;
+$\mathit{mejor} \gets$ vacía, $\mathit{mejorCosto} \gets +\infty$\;
+\While{verdadero}{
+  $\mathit{actual} \gets (1, \mathit{comb}[0], \ldots, \mathit{comb}[m-1], n)$\;
+  $\mathit{costo} \gets \sum_{t=1}^{k-1} c(\mathit{actual}[t], \mathit{actual}[t+1])$\;
+  \If{$\mathit{mejor}$ es vacía \KwO $\mathit{costo} < \mathit{mejorCosto}$}{
+    $\mathit{mejor} \gets \mathit{actual}$, $\mathit{mejorCosto} \gets \mathit{costo}$\;
+  }
+  $p \gets m - 1$\;
+  \lWhile{$p \ge 0$ \KwY $\mathit{comb}[p] = (n-1) - (m-1-p)$}{$p \gets p - 1$}
+  \lIf{$p < 0$}{\Salir}
+  $\mathit{comb}[p] \gets \mathit{comb}[p] + 1$\;
+  \lFor{$q \gets p+1$ \KwHasta $m-1$}{$\mathit{comb}[q] \gets \mathit{comb}[q-1] + 1$}
+}
+\Return{$\mathit{mejor}$}
+\end{algorithm}
+
+El tiempo es $O\!\left(\binom{n-2}{k-2}\, k\, d\right)$ y el espacio adicional es $O(k)$. La enumeración recorre exactamente una vez cada uno de los $\binom{n-2}{k-2}$ subconjuntos, sin saltear ninguno porque no hay podas. Por cada combinación se paga $O(k)$ para armar la selección y avanzar el vector $\mathit{comb}$, más $O(d)$ por cada par consecutivo que no sea un avance $i \to i+1$, que son a lo sumo $\min(k-1, n-k)$ pares, con lo cual $O(k d)$ acota el trabajo por combinación. Con $k = n/2$ el número de combinaciones crece como $2^{n}$ dividido por un polinomio y, en general, con $k = \alpha n$ crece como $2^{H(\alpha) n}$ salvo factores polinomiales, donde $H$ es la entropía binaria (base $1{,}755$ por pulso para $\alpha = 1/4$), así que el algoritmo es exponencial en $n$ en todo el régimen de uso, mientras que con $k$ fijo es polinomial de grado $k-2$.
+
+\subsection{Backtracking}
+\label{sec:bt}
+
+Backtracking construye las selecciones de a un pulso y recorre el árbol de selecciones parciales que empiezan en el pulso $1$. Cada nodo del árbol es un prefijo $1 = i_1 < \cdots < i_t$ descripto por el estado $(i_t, t, \mathit{costoParcial})$, donde el costo parcial es la suma de los saltos entre pulsos consecutivos del prefijo. Los hijos de un nodo son las extensiones con un pulso $j > i_t$, recorridas en orden creciente, de manera que $j = i_t + 1$, que cuesta $0$, se explora primero y los prefijos baratos se completan antes que los caros. Una hoja es un prefijo con $k$ pulsos que es solución solo si termina en $n$.
+
+Las dos podas descartan ramas por motivos distintos. La poda por factibilidad evita los prefijos que no pueden llegar a $n$ con exactamente $k$ pulsos. Si al agregar $j$ todavía faltan al menos dos pulsos, es decir $t + 1 < k$, después de $j$ tienen que quedar $k - t - 1$ pulsos disponibles en $\{j+1, \ldots, n\}$, lo que exige $n - j \ge k - t - 1$ y en particular $j < n$. Esa condición es monótona en $j$, así que apenas falla el ciclo se corta. Si $j$ fuera el último pulso, la única opción es $j = n$, así que la implementación arranca el ciclo directamente allí en lugar de recorrer y descartar los $n - i_t - 1$ candidatos intermedios. La poda por optimalidad usa que todos los costos son no negativos, de modo que el costo parcial de un prefijo es una cota inferior del costo de cualquier selección que lo complete. Si $\mathit{costoParcial} + c(i_t, j)$ alcanza o supera el costo de la mejor solución conocida, ninguna extensión de ese prefijo puede mejorarla y la rama se abandona. La comparación usa $\ge$ porque una solución de igual costo tampoco mejora la conocida.
+
+La cota inicial es la solución de truncar, $1, 2, \ldots, k-1, n$, cuyo costo es $c(k-1, n)$ porque todos los saltos anteriores son adyacentes. Esa selección es válida para cualquier $k \le n$, así que su costo es una cota superior del óptimo, sirve para podar desde el primer nodo y garantiza que el algoritmo devuelve una selección válida aun cuando ninguna hoja la mejore. En el ejemplo del enunciado la cota vale $c(3,6) = 3$ y la búsqueda visita cinco nodos. Desde la raíz $\{1\}$ se baja a $\{1,2\}$ y a $\{1,2,3\}$, cuya única extensión válida es $j = 6$ con costo $3$, descartada por optimalidad. De vuelta en $\{1,2\}$ se prueba $j = 4$ con costo parcial $1$ y se llega a la hoja $1, 2, 4, 6$ con costo $2$, la nueva cota. Los candidatos restantes, $j = 5$ desde $\{1,2\}$ y $j = 3$ o $j = 4$ desde la raíz, la alcanzan o superan y no se exploran. Sin la poda por factibilidad se visitan nueve nodos, sin la de optimalidad dieciséis y sin ninguna veintiséis.
+
+\begin{algorithm}[htbp]
+\caption{Backtracking con podas por factibilidad y por optimalidad}
+\label{alg:bt}
+\KwIn{$n$, $k$, la función de costo $c$ y los indicadores $\mathit{podaFact}$ y $\mathit{podaOpt}$}
+\KwOut{selección de $k$ pulsos de costo mínimo}
+$\mathit{mejor} \gets (1, 2, \ldots, k-1, n)$, $\mathit{mejorCosto} \gets c(k-1, n)$\;
+$\mathit{parcial} \gets (1)$, $\mathit{nodos} \gets 0$\;
+\Extender{$1$, $1$, $0$}\;
+\Return{$\mathit{mejor}$}\;
+\BlankLine
+\Proc{\Extender{$\mathit{ultimo}$, $\mathit{elegidos}$, $\mathit{costoParcial}$}}{
+  $\mathit{nodos} \gets \mathit{nodos} + 1$\;
+  \If{$\mathit{elegidos} = k$}{
+    \If{$\mathit{ultimo} = n$ \KwY $\mathit{costoParcial} < \mathit{mejorCosto}$}{
+      $\mathit{mejor} \gets \mathit{parcial}$, $\mathit{mejorCosto} \gets \mathit{costoParcial}$\;
+    }
+    \Return{}\;
+  }
+  $j_0 \gets \mathit{ultimo} + 1$\;
+  \lIf{$\mathit{podaFact}$ \KwY $\mathit{elegidos} + 1 = k$}{$j_0 \gets n$}
+  \For{$j \gets j_0$ \KwHasta $n$}{
+    \If{$\mathit{podaFact}$ \KwY $\mathit{elegidos} + 1 < k$}{
+      \lIf{$j \ge n$ \KwO $n - j < k - \mathit{elegidos} - 1$}{\Salir}
+    }
+    $\mathit{salto} \gets c(\mathit{ultimo}, j)$\;
+    \lIf{$\mathit{podaOpt}$ \KwY $\mathit{costoParcial} + \mathit{salto} \ge \mathit{mejorCosto}$}{\Continuar}
+    agregar $j$ al final de $\mathit{parcial}$\;
+    \Extender{$j$, $\mathit{elegidos} + 1$, $\mathit{costoParcial} + \mathit{salto}$}\;
+    quitar $j$ de $\mathit{parcial}$\;
+  }
+}
+\end{algorithm}
+
+Sin podas el árbol tiene exactamente $\sum_{t=0}^{k-1} \binom{n-1}{t}$ nodos, uno por cada subconjunto de a lo sumo $k-1$ pulsos tomados de $\{2, \ldots, n\}$. Con $k = n/2$ esa suma vale $2^{n-2}$ porque cubre la mitad inferior de la fila $n-1$ del triángulo de Pascal. Cada iteración del ciclo recurre, así que el trabajo se amortiza sobre las aristas y el tiempo total es $\Theta\!\left(d \sum_{t<k} \binom{n-1}{t}\right)$, es decir $\Theta(d\, 2^{n})$ cuando $k \ge n/2$ y exponencial con base $2^{H(k/n)} < 2$ cuando $k < n/2$. La poda por factibilidad deja como hojas exactamente las $\binom{n-2}{k-2}$ selecciones válidas, las mismas que enumera fuerza bruta, con un tiempo que sigue siendo $O(d)$ por nodo visitado porque el ciclo nunca itera sin recurrir. El crecimiento continúa siendo exponencial, ya que solo se evitan las ramas que no pueden llegar a $n$ y esas son una fracción fija del árbol.
+
+La poda por optimalidad no mejora el peor caso, porque su efecto depende de los datos. Con $d = 1$ y $f_i = i$ todo salto $c(i,j)$ vale $j - i - 1$ y toda selección cuesta $n - k$, de modo que la cota inicial ya es óptima y ninguna hoja la mejora, pero cada prefijo tiene costo menor que la cota mientras le queden pulsos por saltear. Sobre esa instancia la búsqueda con ambas podas visita exactamente $\binom{n-2}{k-2}$ nodos ($3003$ con $n = 16$, $\num{43758}$ con $n = 20$ y $\num{646646}$ con $n = 24$, siempre con $k = n/2$), tantos como combinaciones evalúa fuerza bruta. El peor caso es entonces exponencial en $n$ con o sin la segunda poda, aunque su beneficio se mide en la experimentación, donde reduce los nodos visitados en varios órdenes de magnitud. El espacio es $O(k)$ para la selección parcial, la mejor solución y la pila de recursión, cuya profundidad máxima es $k$.
+
+El estado $(i_t, t)$ es lo que lleva a la programación dinámica. Dos prefijos que terminan en el mismo pulso con la misma cantidad de pulsos tienen las mismas extensiones posibles, porque las podas y los saltos siguientes dependen solo de $i_t$ y de $t$, pero backtracking los explora por separado y repite el trabajo de completarlos, cuando alcanza con quedarse con el más barato y resolver cada estado una sola vez.
+
+\subsection{Programación dinámica}
+\label{sec:pd}
+
+La programación dinámica resuelve cada estado $(t, i)$ una sola vez y guarda el resultado en una tabla. Sea $M[t][i]$ el costo mínimo de una selección de $t$ pulsos que empieza en $1$ y termina en $i$, con $1 \le t \le k$ y $t \le i \le n$. El caso base es $M[1][1] = 0$ junto con $M[1][i] = +\infty$ para $i > 1$, porque una selección de un solo pulso solo puede estar parada en el $1$. Para $t \ge 2$ el último salto llega a $i$ desde algún pulso $i' < i$ que cierra una selección de $t-1$ pulsos, de las cuales la mejor es la que da $M[t-1][i']$, así que
+\begin{equation}
+M[t][i] = \min_{t-1 \le i' < i} \left( M[t-1][i'] + c(i', i) \right),
+\label{eq:pd}
+\end{equation}
+donde $i' \ge t-1$ porque una selección de $t-1$ pulsos no puede terminar antes del pulso $t-1$. La respuesta es $M[k][n]$. La recurrencia es correcta porque reemplazar el prefijo de una selección óptima por otro más barato con los mismos $t-1$ e $i'$ no altera el costo de $c(i', i)$ ni de los saltos siguientes, así que el prefijo de una solución óptima es óptimo para su estado.
+
+En el ejemplo del enunciado la tabla se llena en tres filas. La fila $2$ vale $M[2][i] = c(1,i)$, es decir $0$, $4$ y $5$ para $i = 2, 3, 4$. En la fila $3$, $M[3][3] = 0$ viene de $i' = 2$, $M[3][4] = \min(0 + 1, 4 + 0) = 1$ viene de $i' = 2$ y $M[3][5] = \min(0 + 3, 4 + 4, 5 + 0) = 3$ también viene de $i' = 2$. En la fila $4$, $M[4][6] = \min(0 + 3, 1 + 1, 3 + 0) = 2$ se alcanza con $i' = 4$. Siguiendo los predecesores desde $(4, 6)$ se obtiene $4$, luego $2$ y luego $1$, que invertidos dan la selección $1, 2, 4, 6$.
+
+No hace falta calcular toda la fila. En la fila $t$ solo son útiles los estados con $t \le i \le n - (k - t)$, porque antes de $i$ tiene que haber $t-1$ pulsos elegidos y después de $i$ tienen que quedar $k - t$ para completar la selección. Todos los estados de ese rango son alcanzables, ya que $1, 2, \ldots, t-1, i$ es un prefijo válido, mientras que el rango de $i'$ de la ecuación~\eqref{eq:pd} queda contenido en el rango útil de la fila anterior, así que nunca se lee un estado sin calcular. La fila $2$ es la excepción porque su único predecesor es $i' = 1$. Como la fila $t$ solo lee la fila $t-1$, la implementación (algoritmo~\ref{alg:pd}) guarda dos filas de $M$ que se intercambian y conserva aparte una tabla de predecesores, indexada con $i - t$ para que cada fila ocupe $n - k + 1$ enteros en lugar de $n$, con la que reconstruye la selección desde $(k, n)$ hasta $(1, 1)$. Ante empates se conserva el primer predecesor que alcanza el mínimo, lo que fija una selección determinista que puede no coincidir con la lexicográficamente menor de los otros dos algoritmos.
+
+\begin{algorithm}[htbp]
+\caption{Programación dinámica con reconstrucción}
+\label{alg:pd}
+\KwIn{$n$, $k$ y la función de costo $c$}
+\KwOut{selección de $k$ pulsos de costo mínimo}
+$\mathit{filaAnt}[1..n] \gets +\infty$, $\mathit{filaAnt}[1] \gets 0$, $\mathit{filaAct}[1..n] \gets +\infty$\;
+$\mathit{pred}[2..k][0..n-k] \gets 0$\;
+\For{$t \gets 2$ \KwHasta $k$}{
+  \For{$i \gets t$ \KwHasta $n - (k - t)$}{
+    \lIf{$t = 2$}{$i'_{\min} \gets 1$, $i'_{\max} \gets 1$}
+    \lElse{$i'_{\min} \gets t - 1$, $i'_{\max} \gets i - 1$}
+    $\mathit{mejor} \gets +\infty$, $\mathit{mejorPrevio} \gets 0$\;
+    \For{$i' \gets i'_{\min}$ \KwHasta $i'_{\max}$}{
+      $\mathit{cand} \gets \mathit{filaAnt}[i'] + c(i', i)$\;
+      \lIf{$\mathit{mejorPrevio} = 0$ \KwO $\mathit{cand} < \mathit{mejor}$}{$\mathit{mejor} \gets \mathit{cand}$, $\mathit{mejorPrevio} \gets i'$}
+    }
+    $\mathit{filaAct}[i] \gets \mathit{mejor}$, $\mathit{pred}[t][i - t] \gets \mathit{mejorPrevio}$\;
+  }
+  intercambiar $\mathit{filaAnt}$ y $\mathit{filaAct}$\;
+}
+$\mathit{sel} \gets ()$, $\mathit{actual} \gets n$\;
+\For{$t \gets k$ \KwHasta $1$, decreciendo}{
+  agregar $\mathit{actual}$ al frente de $\mathit{sel}$\;
+  \lIf{$t > 1$}{$\mathit{actual} \gets \mathit{pred}[t][\mathit{actual} - t]$}
+}
+\Return{$\mathit{sel}$}
+\end{algorithm}
+
+El tiempo es $O(k\, n^2 d)$ en general y $O\!\left(n d + (k-2)(n-k+1)^2 d\right)$ para esta implementación. La cota genérica cuenta $k-1$ filas con a lo sumo $n$ estados y $n$ predecesores por estado, cada uno con una evaluación de $c$ en $O(d)$, mientras que el conteo fino tiene en cuenta el rango útil. La fila $2$ evalúa un único predecesor para cada uno de sus $n-k+1$ estados y cada fila $t \ge 3$ tiene $n-k+1$ estados con entre $1$ y $n-k+1$ predecesores, es decir $(n-k+1)(n-k+2)/2$ pares $(i', i)$ por fila, que acotamos por $(n-k+1)^2$. En los extremos $k = 2$ y $k = n$ el tiempo queda en $O(n d)$, mientras que con $k = n/2$ el conteo fino es cercano a $n^3 d / 8$, cuatro veces menor que la cota genérica pero del mismo orden. La reconstrucción cuesta $O(k)$.
+
+El espacio es $\Theta(k\,(n-k+1))$ por la tabla de predecesores más $O(n)$ por las dos filas de $M$, lo que en conjunto es $O(k n)$ y a lo sumo del orden de $n^2 / 4$ enteros, alcanzado en $k = n/2$. Precalcular la matriz de costos $c(i', i)$ de todos los pares, con $O(n^2 d)$ de tiempo y $O(n^2)$ de memoria, se descartó porque cada par se usa a lo sumo $k-1$ veces, una por fila, así que memorizarlo ahorra como máximo un factor $d$ en el ciclo interno sin cambiar el orden de la cota. Con $d = 12$ ese factor no compensa una matriz de $n^2$ reales, que para $n = 2000$ ocupa $32$~MB.

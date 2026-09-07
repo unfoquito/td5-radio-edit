@@ -1,6 +1,8 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{microtype}
+\DisableLigatures[-]{encoding=T1,family=tt*}
 \usepackage[spanish,es-tabla]{babel}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb}
@@ -16,10 +18,19 @@
 
 \decimalpoint
 \sisetup{output-decimal-marker={,},group-separator={.}}
-\SetKwInput{KwIn}{Input}
-\SetKwInput{KwOut}{Output}
+\SetKwInput{KwIn}{Entrada}
+\SetKwInput{KwOut}{Salida}
 \SetAlgorithmName{Algoritmo}{algoritmo}{Índice de algoritmos}
 \graphicspath{{figuras/}}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.7}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.85}
+\setlength{\textfloatsep}{12pt plus 2pt minus 4pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\setlength{\intextsep}{10pt plus 2pt minus 2pt}
+\captionsetup{skip=6pt,font=small}
+\SetAlFnt{\small}
 
 \title{\textbf{Tecnología Digital V: Diseño de Algoritmos}\\[0.4em]
 \large Segundo semestre de 2026\\[2em]
@@ -31,32 +42,15 @@
 \begin{document}
 \maketitle
 \thispagestyle{empty}
-\newpage
 \tableofcontents
 \newpage
 
-\section{Introducción}
-% Motivación, problema, qué se hizo y qué se encontró (dos párrafos).
-
-\section{Modelo del problema}
-% Definición formal: pulsos, features, selección, costo c(i,j), objetivo. Ejemplo del enunciado trazado.
-
-\section{Algoritmos propuestos}
-\subsection{Fuerza bruta}
-\subsection{Backtracking}
-\subsection{Programación dinámica}
-
-\section{Implementación}
-\subsection{Diseño de clases}
-\subsection{Reimplementación en Python y uso de inteligencia artificial}
-\subsection{Testing}
-
-\section{Experimentación}
-\subsection{Datasets}
-\subsection{Metodología}
-\subsection{Resultados}
-
-\section{Conclusiones}
+\input{secciones/01-introduccion}
+\input{secciones/02-modelo}
+\input{secciones/03-algoritmos}
+\input{secciones/04-implementacion}
+\input{secciones/05-experimentacion}
+\input{secciones/06-conclusiones}
 
 \begin{thebibliography}{9}
 \bibitem{wenner2013} Simon Wenner, Jean-Charles Bazin, Alexander Sorkine-Hornung, Changil Kim y Markus Gross. Scalable music: Automatic music retargeting and synthesis. \emph{Computer Graphics Forum}, 32(2):345--354, 2013.
