@@ -1,5 +1,9 @@
 CXX      = g++
-CXXFLAGS = -std=c++17 -O2 -Wall -Wextra
+# -ffp-contract=off: sin esta opción clang en arm64 fusiona "suma += dif*dif" de
+# Instancia::costo en una FMA y la norma difiere en 1 ulp respecto de otras
+# plataformas (y de python/algoritmos.py). Con la opción el binario es
+# reproducible bit a bit y los empates se resuelven igual en C++ y en Python.
+CXXFLAGS = -std=c++17 -O2 -Wall -Wextra -ffp-contract=off
 SRCDIR   = source
 OUTDIR   = output
 
