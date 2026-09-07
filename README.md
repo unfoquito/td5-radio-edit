@@ -11,22 +11,119 @@ Integrantes: Sofía Parisi, Luz Alba Posse y Victoria Schenone Fernández.
 
 ```
 enunciado/          consigna del trabajo
+informe/            informe en LaTeX (informe.tex) y sus figuras
 TP1/
   source/           implementación en C++ (fuerza bruta, backtracking y programación dinámica)
-  python/           reimplementación en Python de BT y PD, scripts de extracción y reconstrucción
-  input/            instancias de prueba
-  audio/            grabaciones usadas en la experimentación (no se versionan)
+  python/           reimplementación en Python de BT y PD, generador de instancias, verificador
+                    cruzado y scripts de extracción y reconstrucción de audio
+  input/            instancias de prueba: ejemplo.txt del enunciado y input/real/ con las reales
+  audio/            grabaciones usadas en la experimentación (no se versionan, ver audio/FUENTES.md)
   output/           selecciones y mediciones generadas por las corridas
   Makefile
 ```
 
-## Compilación y ejecución
+## Requisitos
+
+- C++: g++ o clang con soporte de C++17 y make. No hay dependencias externas.
+- Python 3.8 o superior. Los algoritmos, el generador y el verificador usan solo la biblioteca
+  estándar. Solo extraer.py y el backend mp3 de reconstruir.py necesitan librosa, numpy y
+  soundfile (ver `TP1/python/requirements.txt`).
+
+## C++: compilación y ejecución
 
 ```
 cd TP1
-make
-./radioedit --instancia input/ejemplo.txt --algoritmo pd
+make                 # genera el binario radioedit (compila sin warnings con -Wall -Wextra)
+make run-ejemplo     # corre pd sobre input/ejemplo.txt
+make clean           # borra el binario
+make clean-output    # borra las salidas de output/ (conserva los .gitkeep)
 ```
 
-Los algoritmos disponibles son `fb`, `bt` y `pd`. Con `--csv <archivo>` se registra el tiempo de cada
-corrida y con `--salida <archivo>` se elige dónde guardar la selección.
+Uso del binario:
+
+```
+./radioedit --instancia <archivo> --algoritmo <fb|bt|pd> [--salida <archivo>] [--csv <archivo>]
+            [--sin-poda-factibilidad] [--sin-poda-optimalidad]
+```
+
+- `--algoritmo`: `fb` (fuerza bruta), `bt` (backtracking) o `pd` (programación dinámica, valor por
+  defecto).
+- `--salida`: archivo donde se escribe la selección, una sola línea con los k índices en base 1
+  separados por espacio. Por defecto `output/numericos/seleccion_<algoritmo>.txt`; el directorio se
+  crea si no existe.
+- `--csv`: agrega una fila `algoritmo,n,d,k,costo,ms` al archivo indicado (escribe la cabecera si
+  el archivo es nuevo).
+- `--sin-poda-factibilidad` y `--sin-poda-optimalidad`: apagan cada poda de `bt` por separado, para
+  los experimentos. Con `bt` se imprime además la cantidad de nodos visitados.
+
+Ejemplo:
+
+```
+./radioedit --instancia input/ejemplo.txt --algoritmo bt --csv output/numericos/tiempos.csv
+```
+
+Por pantalla se muestra la selección, el costo y el tiempo de resolución en milisegundos. Si la
+instancia no existe o está mal formada, el programa termina con código 1 y un mensaje que indica
+el problema.
+
+Nota sobre el Makefile: se compila con `-ffp-contract=off` para que la norma euclídea dé el mismo
+double en todas las plataformas y coincida bit a bit con la versión en Python. Sin esa opción,
+clang en arm64 fusiona la multiplicación y la suma en una FMA y los empates pueden resolverse
+distinto. En Windows con MinGW usar `mingw32-make` en lugar de `make`.
+
+## Python: reimplementación de BT y PD
+
+`python/algoritmos.py` implementa `bt` y `pd` con la misma interfaz de línea de comandos que el
+binario:
+
+```
+cd TP1
+python3 python/algoritmos.py --instancia input/ejemplo.txt --algoritmo pd
+python3 python/algoritmos.py --instancia input/ejemplo.txt --algoritmo bt --sin-poda-optimalidad
+```
+
+Las salidas por pantalla, el archivo `--salida` y el CSV tienen el mismo formato que en C++. En la
+columna `algoritmo` del CSV se usa la etiqueta `py-bt` o `py-pd`, así se pueden mezclar mediciones
+de los dos lenguajes en un mismo archivo. Los scripts `python/backtracking.py` y
+`python/programacion_dinamica.py` son atajos que fijan el algoritmo (los usa el verificador).
+
+Para usar el entorno virtual del repositorio (hace falta solo para extraer.py y reconstruir.py):
+
+```
+python3 -m venv .venv
+.venv/bin/pip install -r TP1/python/requirements.txt
+```
+
+## Generador de instancias y verificador cruzado
+
+```
+cd TP1/python
+python3 generador.py --n 60 --d 12 --k 30 --modo estructura --semilla 1 --salida ../input/e60.txt
+python3 verificar.py --binario ../radioedit --solvers fb,bt,pd,py-bt,py-pd --cantidad 100
+```
+
+`generador.py` escribe instancias en el formato del enunciado con tres modos: `uniforme`,
+`estructura` (secciones repetidas, el caso musical) y `adversarial` (todos los pulsos distintos).
+`verificar.py` genera instancias chicas al azar, corre los solvers pedidos, valida cada selección y
+compara los costos contra un óptimo calculado en Python por fuerza bruta y entre sí. Las
+discrepancias se guardan en `output/discrepancias`; termina con código 0 si no hubo ninguna.
+Ambos scripts documentan sus opciones con `--help`.
+
+## Audio: extracción y reconstrucción
+
+Con el entorno virtual instalado (ver arriba):
+
+```
+cd TP1
+../.venv/bin/python python/extraer.py audio/cancion.mp3 --salida input/real/cancion --duracion 60
+./radioedit --instancia input/real/cancion.txt --algoritmo pd --salida output/numericos/cancion.txt
+../.venv/bin/python python/reconstruir.py audio/cancion.mp3 output/numericos/cancion.txt \
+    --pulsos input/real/cancion_pulsos.txt --salida output/audio/cancion_recorte.wav
+```
+
+`python/extraer_todo.sh` regenera todas las instancias de `input/real` a partir del audio que
+descarga `audio/descargar.sh` (fuentes y licencias en `audio/FUENTES.md`).
+
+## Informe
+
+`informe/informe.tex` se compila con `pdflatex` (dos pasadas para el índice y las referencias).

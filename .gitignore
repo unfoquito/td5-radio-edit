@@ -9,6 +9,7 @@ TP1/output/numericos/*
 TP1/output/audio/*
 !TP1/output/numericos/.gitkeep
 !TP1/output/audio/.gitkeep
+TP1/output/discrepancias/
 
 # audio fuente (se descarga con el script, no se versiona)
 TP1/audio/*
@@ -34,3 +35,4 @@ informe/*.blg
 
 # sistema
 .DS_Store
+informe/informe.pdf
