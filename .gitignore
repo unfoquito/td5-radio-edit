@@ -14,6 +14,7 @@ TP1/output/audio/*
 TP1/audio/*
 !TP1/audio/.gitkeep
 !TP1/audio/FUENTES.md
+!TP1/audio/*.sh
 
 # python
 .venv/
