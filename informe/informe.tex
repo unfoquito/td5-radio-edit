@@ -1,0 +1,65 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage[ruled,vlined,linesnumbered,spanish]{algorithm2e}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black,citecolor=blue!60!black]{hyperref}
+
+\decimalpoint
+\sisetup{output-decimal-marker={,},group-separator={.}}
+\SetKwInput{KwIn}{Input}
+\SetKwInput{KwOut}{Output}
+\SetAlgorithmName{Algoritmo}{algoritmo}{Índice de algoritmos}
+\graphicspath{{figuras/}}
+
+\title{\textbf{Tecnología Digital V: Diseño de Algoritmos}\\[0.4em]
+\large Segundo semestre de 2026\\[2em]
+\Huge Trabajo Práctico 1\\[0.3em]
+\LARGE Recorte consciente de audio}
+\author{Integrantes:\\[0.5em] Sofía Parisi\\ Luz Alba Posse\\ Victoria Schenone Fernández}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introducción}
+% Motivación, problema, qué se hizo y qué se encontró (dos párrafos).
+
+\section{Modelo del problema}
+% Definición formal: pulsos, features, selección, costo c(i,j), objetivo. Ejemplo del enunciado trazado.
+
+\section{Algoritmos propuestos}
+\subsection{Fuerza bruta}
+\subsection{Backtracking}
+\subsection{Programación dinámica}
+
+\section{Implementación}
+\subsection{Diseño de clases}
+\subsection{Reimplementación en Python y uso de inteligencia artificial}
+\subsection{Testing}
+
+\section{Experimentación}
+\subsection{Datasets}
+\subsection{Metodología}
+\subsection{Resultados}
+
+\section{Conclusiones}
+
+\begin{thebibliography}{9}
+\bibitem{wenner2013} Simon Wenner, Jean-Charles Bazin, Alexander Sorkine-Hornung, Changil Kim y Markus Gross. Scalable music: Automatic music retargeting and synthesis. \emph{Computer Graphics Forum}, 32(2):345--354, 2013.
+\end{thebibliography}
+
+\end{document}

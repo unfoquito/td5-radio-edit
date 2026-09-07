@@ -31,7 +31,10 @@ def extraer(ruta_audio, sr_objetivo, caracteristicas):
     features = sincronizada.T
     n = min(len(features), len(fronteras) - 1)
 
-    return features[:n], fronteras[:n + 1], duracion, float(bpm)
+    # librosa 0.11 devuelve el tempo como arreglo de un elemento; se toma el escalar.
+    bpm = float(np.atleast_1d(bpm)[0])
+
+    return features[:n], fronteras[:n + 1], duracion, bpm
 
 def main():
     parser = argparse.ArgumentParser(description="Convierte una grabacion en una instancia.")
