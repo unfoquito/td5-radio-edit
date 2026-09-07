@@ -124,6 +124,39 @@ cd TP1
 `python/extraer_todo.sh` regenera todas las instancias de `input/real` a partir del audio que
 descarga `audio/descargar.sh` (fuentes y licencias en `audio/FUENTES.md`).
 
+## Experimentación
+
+Toda la experimentación del informe se reproduce desde un único script con subcomandos, que
+corre el binario y la versión en Python por subprocess, toma la mediana de tres corridas del
+tiempo que imprime cada programa y guarda los resultados en CSV:
+
+```
+cd <raíz del repo>
+.venv/bin/python TP1/python/experimentos.py --help     # lista los subcomandos
+.venv/bin/python TP1/python/experimentos.py todo       # generar + e1 ... e6, unos 25 minutos
+.venv/bin/python TP1/python/experimentos.py e3         # un solo experimento
+.venv/bin/python TP1/python/experimentos.py figuras    # regenera las figuras desde los CSV
+.venv/bin/python TP1/python/experimentos.py todo --rapido   # versión reducida, menos de un minuto
+```
+
+- `generar` escribe las instancias sintéticas en `TP1/input/sinteticas/<familia>/` con una semilla
+  fija por familia, n, k y d (`semilla_de` en el script), así que las corridas son reproducibles.
+  Las familias son `uniforme` (puntos uniformes en [0,1]^d), `estructura` (patrón de secciones
+  ABBCBB con ruido gaussiano de desvío 0,05) y `adversarial` (grilla de paso 1 en orden aleatorio),
+  todas con d = 12 salvo la serie en d del experimento e3.
+- `e1` compara los tres exactos (alcance en n y coincidencia de costos), `e2` mide las podas de
+  backtracking, `e3` el escalado de la programación dinámica en n, k y d (con memoria pico),
+  `e4` C++ contra Python, `e5` las grabaciones reales de `TP1/input/real` (incluye la
+  reconstrucción de audio, que necesita el venv y los mp3 de `TP1/audio`) y `e6` los tres exactos
+  sobre prefijos de una grabación real.
+- Los CSV quedan en `TP1/output/numericos/` (ignorado por git) y las copias finales en
+  `informe/datos/`; las figuras van a `informe/figuras/` en PNG a 200 dpi. Con `--reps` se cambia
+  la cantidad de repeticiones y con `--timeout` el límite por corrida (60 s, o 150 s en e3 y e4).
+- Si el binario `TP1/radioedit` no existe, el script lo compila con `make`.
+
+La máquina y el compilador con que se midieron los tiempos del informe se describen en la sección
+de metodología del informe.
+
 ## Informe
 
 `informe/informe.tex` se compila con `pdflatex` (dos pasadas para el índice y las referencias).
