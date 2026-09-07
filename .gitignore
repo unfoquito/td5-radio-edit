@@ -1,0 +1,35 @@
+# binarios y objetos
+TP1/radioedit
+*.o
+*.out
+*.exe
+
+# salidas de corridas (se conservan los .gitkeep)
+TP1/output/numericos/*
+TP1/output/audio/*
+!TP1/output/numericos/.gitkeep
+!TP1/output/audio/.gitkeep
+
+# audio fuente (se descarga con el script, no se versiona)
+TP1/audio/*
+!TP1/audio/.gitkeep
+!TP1/audio/FUENTES.md
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# latex
+informe/*.aux
+informe/*.log
+informe/*.out
+informe/*.toc
+informe/*.fls
+informe/*.fdb_latexmk
+informe/*.synctex.gz
+informe/*.bbl
+informe/*.blg
+
+# sistema
+.DS_Store

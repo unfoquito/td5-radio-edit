@@ -1,0 +1,6 @@
+# Dependencias de extraer.py y del backend mp3 de reconstruir.py.
+# generar_demo.py, generador.py, experimentos.py y figura.py NO las necesitan:
+# funcionan con la biblioteca estandar de Python.
+librosa>=0.10
+numpy>=1.24
+soundfile>=0.12
