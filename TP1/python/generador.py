@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """Generador de instancias para el problema de radio edit.
 
-Escribe archivos en el formato del enunciado: una primera linea "n d k" y
-luego n lineas con d reales (el vector de caracteristicas de cada pulso).
+Escribe archivos en el formato del enunciado: una primera línea "n d k" y
+luego n líneas con d reales (el vector de características de cada pulso).
 
 Modos:
   uniforme     cada pulso es un punto uniforme en [0,1]^d (sin estructura).
-  estructura   la grabacion tiene secciones repetidas (por ejemplo A B B C B B).
+  estructura   la grabación tiene secciones repetidas (por ejemplo A B B C B B).
                Cada letra del patron tiene un vector base uniforme en [0,1]^d y
-               cada pulso es el vector base de su seccion mas ruido gaussiano.
+               cada pulso es el vector base de su sección más ruido gaussiano.
                Es el caso "musical": hay saltos casi gratis entre secciones iguales.
   adversarial  todos los pulsos son muy distintos entre si: puntos de una grilla
                regular separados por --paso, en orden aleatorio (o creciente con
-               --ordenado). No hay saltos baratos, asi que las podas rinden poco.
+               --ordenado). No hay saltos baratos, así que las podas rinden poco.
 
-Solo usa la biblioteca estandar, para que corra con cualquier Python 3.
+Solo usa la biblioteca estándar, para que corra con cualquier Python 3.
 
 Ejemplos:
   python3 generador.py --n 20 --d 2 --k 8 --modo uniforme --semilla 1 --salida ../input/u20.txt
@@ -34,9 +34,9 @@ def generar_uniforme(n, d, rng):
 
 
 def generar_estructura(n, d, rng, patron, largo_seccion=None, ruido=0.05):
-    """Secciones repetidas. La seccion del pulso i (base 0) es
+    """Secciones repetidas. La sección del pulso i (base 0) es
     patron[min(i // largo_seccion, len(patron) - 1)]: las letras se recorren
-    en orden y la ultima absorbe el resto si n no es multiplo del largo."""
+    en orden y la última absorbe el resto si n no es múltiplo del largo."""
     if not patron:
         raise ValueError("el patron no puede ser vacio")
     if largo_seccion is None:
@@ -44,7 +44,7 @@ def generar_estructura(n, d, rng, patron, largo_seccion=None, ruido=0.05):
     if largo_seccion < 1:
         raise ValueError("--largo-seccion debe ser >= 1")
 
-    # Un vector base por letra distinta, asi dos secciones "B" comparten base.
+    # Un vector base por letra distinta, así dos secciones "B" comparten base.
     bases = {}
     for letra in patron:
         if letra not in bases:

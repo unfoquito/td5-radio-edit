@@ -1,30 +1,28 @@
 #!/usr/bin/env python3
-"""Reimplementacion en Python de los algoritmos de radio edit del TP (C++ en ../source).
+"""Reimplementación en Python de los algoritmos de radio edit del TP (C++ en ../source).
 
-Sirve para comparar lenguajes con la misma recurrencia y la misma reconstruccion
-que el binario C++, asi que la version principal usa solo la biblioteca estandar.
-Hay una variante opcional con numpy (programacion_dinamica_numpy) claramente
-separada; no hace falta tenerlo instalado para usar el resto.
+Sirve para comparar lenguajes con la misma recurrencia y la misma reconstrucción
+que el binario C++, así que usa solo la biblioteca estándar.
 
-Convencion: indices base 1 en toda la interfaz publica, igual que en C++.
+Convención: índices base 1 en toda la interfaz pública, igual que en C++.
 Internamente features[i-1] guarda el vector f_i.
 
-Equivalencia con el binario. El costo c(i, j) se calcula con la misma aritmetica
-de punto flotante que Instancia::costo, operacion por operacion y en el mismo
+Equivalencia con el binario. El costo c(i, j) se calcula con la misma aritmética
+de punto flotante que Instancia::costo, operación por operación y en el mismo
 orden (ver _norma_diferencia). Eso importa porque las podas y los desempates
 comparan doubles: con math.dist o numpy.linalg.norm, que redondean distinto, dos
-caminos con el mismo costo matematico podian quedar en orden invertido y la
-seleccion o la cantidad de nodos visitados dejaban de coincidir con el C++. Para
+caminos con el mismo costo matemático podían quedar en orden invertido y la
+selección o la cantidad de nodos visitados dejaban de coincidir con el C++. Para
 que la igualdad sea bit a bit el binario tiene que compilarse con -ffp-contract=off
 (ya esta en el Makefile): sin eso clang en arm64 fusiona "suma += dif*dif" en una
 FMA y el resultado difiere en 1 ulp.
 
-Sobre instancias validas la salida es la misma que la del binario: las lineas de
+Sobre instancias válidas la salida es la misma que la del binario: las líneas de
 pantalla, el archivo --salida y las columnas del CSV (con la etiqueta "py-pd" o
 "py-bt" en la columna algoritmo, para poder mezclar el archivo con las mediciones
 del C++ sin confundir filas). Diferencias conocidas, solo en entradas mal formadas:
-el C++ (libc++) acepta reales en hexadecimal ("0x10") y aca se rechazan; el texto
-de algunos mensajes de error de argparse no es el de main.cpp (el codigo de salida
+el C++ (libc++) acepta reales en hexadecimal ("0x10") y acá se rechazan; el texto
+de algunos mensajes de error de argparse no es el de main.cpp (el código de salida
 si es 1 en los dos).
 
 CLI con la misma interfaz que el binario:
@@ -47,8 +45,8 @@ import time
 
 # Tokens que acepta Instancia::cargar: enteros decimales para la cabecera y reales
 # en notacion decimal (con o sin exponente) para los valores. Se valida con una
-# expresion regular ASCII antes de convertir porque int() y float() de Python son
-# mas permisivos que istream >> (aceptan "1_0" o digitos unicode, por ejemplo).
+# expresión regular ASCII antes de convertir porque int() y float() de Python son
+# más permisivos que istream >> (aceptan "1_0" o dígitos unicode, por ejemplo).
 _ENTERO = re.compile(r"[+-]?[0-9]+")
 _REAL = re.compile(r"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?")
 _MAXIMO_INT = 2 ** 31 - 1
@@ -61,7 +59,7 @@ def leer_instancia(ruta):
     Replica las validaciones de Instancia::cargar y en el mismo orden: n >= 2,
     d >= 1, 2 <= k <= n, cabecera creible (n y d entran en un int y el archivo
     tiene bytes para n*d valores), exactamente n*d valores finitos (ni de menos ni
-    de mas). Se lee por tokens, asi que tolera espacios o saltos de linea extra.
+    de más). Se lee por tokens, así que tolera espacios o saltos de línea extra.
     Lanza ValueError con un mensaje claro (o FileNotFoundError si no existe).
     """
     with open(ruta, "r", encoding="utf-8") as archivo:
@@ -114,18 +112,18 @@ def leer_instancia(ruta):
 
 
 def _norma_diferencia(esperado, sonado):
-    """|| esperado - sonado ||_2 con exactamente la aritmetica de Instancia::costo.
+    """|| esperado - sonado ||_2 con exactamente la aritmética de Instancia::costo.
 
     Pasos, en el mismo orden que el C++: escala = max |a - b|; si es 0 la norma es
     0; si no es finita se devuelve la escala (infinito); si no, suma de
     ((a - b) / escala)^2 coordenada por coordenada y escala * sqrt(suma). Cada
-    operacion es la misma operacion IEEE que hace el C++, asi que el resultado
+    operación es la misma operación IEEE que hace el C++, así que el resultado
     coincide bit a bit con el binario (compilado sin contraccion a FMA).
 
-    La suma se acumula con un ciclo explicito, de izquierda a derecha como
+    La suma se acumula con un ciclo explícito, de izquierda a derecha como
     "suma += dif*dif". No sirven sum() (en Python >= 3.12 compensa el error de
-    redondeo con el metodo de Neumaier y puede dar otro double), math.fsum ni
-    math.dist (escala distinto). Es unas 9 veces mas lento que math.dist, el
+    redondeo con el método de Neumaier y puede dar otro double), math.fsum ni
+    math.dist (escala distinto). Es unas 9 veces más lento que math.dist, el
     precio de que las podas y los desempates vean los mismos doubles que el C++.
     """
     escala = 0.0
@@ -147,7 +145,7 @@ def _norma_diferencia(esperado, sonado):
 def costo(features, i, j):
     """c(i, j) = || f_{i+1} - f_j ||_2 con 1 <= i < j <= n (base 1).
 
-    Despues de reproducir el pulso i deberia sonar el i+1 pero suena el j. Si
+    Después de reproducir el pulso i debería sonar el i+1 pero suena el j. Si
     j == i+1 no hay salto y el costo es 0, sin calcular nada (como en C++).
     """
     if j == i + 1:
@@ -164,7 +162,7 @@ def costo_seleccion(features, seleccion):
 
 
 def es_valida(n, k, seleccion):
-    """Solucion::esValida: k indices, empieza en 1, termina en n, estrictamente creciente."""
+    """Solucion::esValida: k índices, empieza en 1, termina en n, estrictamente creciente."""
     if len(seleccion) != k:
         return False
     if seleccion[0] != 1 or seleccion[-1] != n:
@@ -173,29 +171,29 @@ def es_valida(n, k, seleccion):
 
 
 # ---------------------------------------------------------------------------
-# Programacion dinamica (replica de ProgramacionDinamica::resolver).
+# Programación dinámica (replica de ProgramacionDinamica::resolver).
 # ---------------------------------------------------------------------------
 
 def programacion_dinamica(n, k, features):
-    """Devuelve la seleccion optima (lista de k indices base 1, creciente).
+    """Devuelve la selección óptima (lista de k índices base 1, creciente).
 
     Recurrencia bottom-up, la misma que en C++:
-      M[t][i] = minimo costo de una seleccion de t pulsos que empieza en 1 y termina en i
+      M[t][i] = mínimo costo de una selección de t pulsos que empieza en 1 y termina en i
       M[1][1] = 0, M[1][i] = inf para i > 1
       M[t][i] = min_{i' < i} ( M[t-1][i'] + c(i', i) )
-    La respuesta es M[k][n]. Solo se guardan dos filas (anterior y actual) mas una
+    La respuesta es M[k][n]. Solo se guardan dos filas (anterior y actual) más una
     tabla de predecesores para reconstruir.
 
-    Poda de estados: en la fila t solo son alcanzables (y utiles) los i con
-    t <= i <= n - (k - t): hacen falta t-1 pulsos antes y k-t despues. Todos esos
-    estados tienen predecesor valido, salvo la fila 1 cuyo unico estado es i = 1.
-    Los predecesores se guardan desplazados, en la posicion t*ancho + (i - t) con
-    ancho = n-k+1, asi el espacio es Theta(k (n-k+1)) y no Theta(k n).
+    Poda de estados: en la fila t solo son alcanzables (y útiles) los i con
+    t <= i <= n - (k - t): hacen falta t-1 pulsos antes y k-t después. Todos esos
+    estados tienen predecesor válido, salvo la fila 1 cuyo único estado es i = 1.
+    Los predecesores se guardan desplazados, en la posición t*ancho + (i - t) con
+    ancho = n-k+1, así el espacio es Theta(k (n-k+1)) y no Theta(k n).
 
-    Empates e infinito: el predecesor se fija con el primer candidato y despues
-    solo se reemplaza con "<" estricto, asi un estado con costo infinito igual
-    queda con predecesor valido y en empate gana el i' mas chico. Como ademas los
-    costos son los mismos doubles que en C++, la seleccion coincide y no solo el
+    Empates e infinito: el predecesor se fija con el primer candidato y después
+    solo se reemplaza con "<" estricto, así un estado con costo infinito igual
+    queda con predecesor válido y en empate gana el i' más chico. Como además los
+    costos son los mismos doubles que en C++, la selección coincide y no solo el
     costo.
     """
     INF = math.inf
@@ -209,7 +207,7 @@ def programacion_dinamica(n, k, features):
     fila_actual = [INF] * (n + 1)
     predecesor = [0] * ((k + 1) * ancho)
 
-    # Caso base: con un solo pulso se esta parado en el 1 con costo 0.
+    # Caso base: con un solo pulso se está parado en el 1 con costo 0.
     fila_anterior[1] = 0.0
 
     for t in range(2, k + 1):
@@ -217,8 +215,8 @@ def programacion_dinamica(n, k, features):
         i_max = n - (k - t)
         base_pred = t * ancho - t  # predecesor[base_pred + i] es el de (t, i)
         for i in range(i_min, i_max + 1):
-            # i' recorre los estados alcanzables de la fila t-1 que estan antes de i:
-            # para t >= 3 son [t-1, i-1]; para t = 2 el unico estado de la fila 1 es 1.
+            # i' recorre los estados alcanzables de la fila t-1 que están antes de i:
+            # para t >= 3 son [t-1, i-1]; para t = 2 el único estado de la fila 1 es 1.
             # El candidato i' = i-1 cuesta c(i-1, i) = 0 (no hay salto).
             f_i = features[i - 1]
             if t == 2:
@@ -228,12 +226,12 @@ def programacion_dinamica(n, k, features):
                 mejor = INF
                 mejor_previo = 0
                 for previo in range(t - 1, i - 1):
-                    # features[previo] es f_{previo+1}, el pulso que deberia sonar.
+                    # features[previo] es f_{previo+1}, el pulso que debería sonar.
                     candidato = fila_anterior[previo] + norma(features[previo], f_i)
                     if mejor_previo == 0 or candidato < mejor:
                         mejor = candidato
                         mejor_previo = previo
-                # Ultimo candidato, i' = i-1, con salto de costo 0.
+                # Último candidato, i' = i-1, con salto de costo 0.
                 candidato = fila_anterior[i - 1]
                 if mejor_previo == 0 or candidato < mejor:
                     mejor = candidato
@@ -257,112 +255,57 @@ def _reconstruir(n, k, ancho, predecesor):
     return seleccion
 
 
-def programacion_dinamica_numpy(n, k, features):
-    """Variante OPCIONAL con numpy (misma recurrencia, mismos empates, mismos doubles).
-
-    Para cada estado (t, i) se vectoriza el minimo sobre i': se calcula de una
-    vez el vector de normas || f_{i'+1} - f_i || para todos los i' del rango y
-    se usa argmin (que devuelve el primer indice en caso de empate, igual que el
-    "<" estricto del C++). No cambia el orden de complejidad, solo la constante.
-
-    Las normas se calculan con el mismo escalado por max|dif| que Instancia::costo
-    (no con numpy.linalg.norm, que eleva al cuadrado sin escalar y desborda a
-    infinito con coordenadas de modulo mayor a ~1e154, con lo que argmin elegia
-    cualquier cosa). La suma de cuadrados se acumula columna por columna para
-    respetar el orden de coordenadas del C++ y que el resultado sea el mismo
-    double. No se usa en las mediciones principales porque numpy no es biblioteca
-    estandar.
-    """
-    import numpy as np  # importacion local: el resto del modulo no lo necesita
-
-    F = np.asarray(features, dtype=float)
-    d = F.shape[1]
-    INF = math.inf
-    ancho = n - k + 1
-    fila_anterior = np.full(n + 1, INF)
-    fila_actual = np.full(n + 1, INF)
-    predecesor = [0] * ((k + 1) * ancho)
-    fila_anterior[1] = 0.0
-
-    def normas_escaladas(diferencias):
-        # Una fila por candidato i'. Donde la escala es 0 la norma es 0 (se divide
-        # por 1 para no generar nan) y donde es infinita se devuelve la escala.
-        escala = np.abs(diferencias).max(axis=1)
-        escala_segura = np.where(escala == 0.0, 1.0, escala)
-        diferencias = diferencias / escala_segura[:, None]
-        suma = np.zeros(len(escala))
-        for c in range(d):
-            suma += diferencias[:, c] * diferencias[:, c]
-        with np.errstate(invalid="ignore"):
-            return np.where(np.isfinite(escala), escala * np.sqrt(suma), escala)
-
-    for t in range(2, k + 1):
-        base_pred = t * ancho - t
-        for i in range(t, n - (k - t) + 1):
-            previo_min = 1 if t == 2 else t - 1
-            # F[previo_min:i] son los f_{i'+1} para i' en [previo_min, i-1];
-            # el ultimo termino da norma 0 (f_i - f_i), que es c(i-1, i) = 0.
-            normas = normas_escaladas(F[previo_min:i] - F[i - 1])
-            candidatos = fila_anterior[previo_min:i] + normas
-            pos = int(np.argmin(candidatos))
-            fila_actual[i] = candidatos[pos]
-            predecesor[base_pred + i] = previo_min + pos
-        fila_anterior, fila_actual = fila_actual, fila_anterior
-
-    return _reconstruir(n, k, ancho, predecesor)
-
-
 # ---------------------------------------------------------------------------
 # Backtracking (replica de Backtracking::resolver y Backtracking::extender).
 # ---------------------------------------------------------------------------
 
 def backtracking(n, k, features, poda_factibilidad=True, poda_optimalidad=True):
-    """Backtracking sobre selecciones parciales. Devuelve (seleccion, costo, nodos).
+    """Backtracking sobre selecciones parciales. Devuelve (selección, costo, nodos).
 
-    Idea: recorrer el arbol de selecciones parciales. El estado es (ultimo pulso
+    Idea: recorrer el árbol de selecciones parciales. El estado es (último pulso
     elegido, cantidad elegida t, costo parcial). Los hijos son las extensiones con
-    un pulso j > ultimo en orden creciente, asi j = ultimo+1 (que cuesta 0) se
-    explora primero y la cota se ajusta rapido. Una hoja es una seleccion con k
-    pulsos; es solucion solo si termina en n.
+    un pulso j > último en orden creciente, así j = último+1 (que cuesta 0) se
+    explora primero y la cota se ajusta rápido. Una hoja es una selección con k
+    pulsos; es solución solo si termina en n.
 
     Podas (las mismas dos que en C++, apagables por separado):
       (a) factibilidad: no extender con un j desde el que no se puede llegar a n
           con exactamente k pulsos. Si faltan al menos dos pulsos (t+1 < k) hace
-          falta j < n y n - j >= k - t - 1 (quedan suficientes pulsos despues de
-          j); si j seria el ultimo (t+1 == k) tiene que ser j == n, y en ese caso
+          falta j < n y n - j >= k - t - 1 (quedan suficientes pulsos después de
+          j); si j sería el último (t+1 == k) tiene que ser j == n, y en ese caso
           se arranca directo en j = n en vez de recorrer y descartar los intermedios.
-      (b) optimalidad: los costos son >= 0, asi que el costo parcial solo crece;
-          si costo_parcial + c(ultimo, j) >= mejor_costo la rama no puede mejorar
-          y se descarta. La cota inicial es la solucion de truncar (1, ..., k-1, n),
+      (b) optimalidad: los costos son >= 0, así que el costo parcial solo crece;
+          si costo_parcial + c(último, j) >= mejor_costo la rama no puede mejorar
+          y se descarta. La cota inicial es la solución de truncar (1, ..., k-1, n),
           cuyo costo es c(k-1, n).
 
-    Decision de implementacion: en C++ la busqueda es recursiva con profundidad
-    k. Aca se usa una pila explicita en vez de recursion porque Python tiene un
-    limite de profundidad chico por defecto (1000) y, aun subiendolo con
-    sys.setrecursionlimit, con k grande se agota la pila nativa del interprete y
-    el proceso muere sin excepcion. Cada marco de la pila corresponde a una
-    llamada a Backtracking::extender y guarda (ultimo, elegidos, costo_parcial,
-    proximo j a probar), asi el orden de exploracion, los empates (gana la primera
-    seleccion encontrada con costo estrictamente menor) y la cantidad de nodos
+    Decisión de implementación: en C++ la búsqueda es recursiva con profundidad
+    k. Acá se usa una pila explícita en vez de recursión porque Python tiene un
+    límite de profundidad chico por defecto (1000) y, aun subiéndolo con
+    sys.setrecursionlimit, con k grande se agota la pila nativa del intérprete y
+    el proceso muere sin excepción. Cada marco de la pila corresponde a una
+    llamada a Backtracking::extender y guarda (último, elegidos, costo_parcial,
+    próximo j a probar), así el orden de exploración, los empates (gana la primera
+    selección encontrada con costo estrictamente menor) y la cantidad de nodos
     visitados son exactamente los del C++.
     """
     # Cota inicial: truncar, conservar 1..k-1 y saltar a n. Siempre es valida (k <= n).
     mejor = list(range(1, k)) + [n]
     mejor_costo = costo(features, k - 1, n)
 
-    parcial = [1]     # seleccion parcial en construccion (base 1); la raiz es {1}
+    parcial = [1]     # selección parcial en construcción (base 1); la raíz es {1}
     nodos = 0
 
     # "Visitar" un nodo es lo que hace extender al entrar: contarlo y, si es hoja,
     # evaluarla. Devuelve el marco a apilar (con su primer j), o None si es hoja.
-    # Invariante: parcial tiene exactamente `elegidos` pulsos, el ultimo es
-    # `ultimo` y `costo_parcial` es la suma de c entre sus consecutivos.
+    # Invariante: parcial tiene exactamente `elegidos` pulsos, el último es
+    # `último` y `costo_parcial` es la suma de c entre sus consecutivos.
     def visitar(ultimo, elegidos, costo_parcial):
         nonlocal nodos, mejor, mejor_costo
         nodos += 1
         if elegidos == k:
-            # Con la poda de factibilidad activa ultimo == n esta garantizado antes
-            # de bajar; sin ella se chequea aca.
+            # Con la poda de factibilidad activa último == n está garantizado antes
+            # de bajar; sin ella se chequea acá.
             if ultimo == n and costo_parcial < mejor_costo:
                 mejor_costo = costo_parcial
                 mejor = parcial[:]
@@ -385,7 +328,7 @@ def backtracking(n, k, features, poda_factibilidad=True, poda_optimalidad=True):
 
         if poda_factibilidad and elegidos + 1 < k:
             # Faltan al menos dos pulsos: j no puede ser n y tienen que quedar
-            # k - elegidos - 1 pulsos despues de j. Si falla, es el break del C++.
+            # k - elegidos - 1 pulsos después de j. Si falla, es el break del C++.
             if j >= n or n - j < k - elegidos - 1:
                 marco[3] = n + 1
                 continue
@@ -404,13 +347,13 @@ def backtracking(n, k, features, poda_factibilidad=True, poda_optimalidad=True):
     return mejor, mejor_costo, nodos
 
 
-# Nodos visitados en la ultima corrida de backtracking_cli, para que el CLI los
+# Nodos visitados en la última corrida de backtracking_cli, para que el CLI los
 # informe igual que el binario (Backtracking::nodosVisitados).
 ESTADISTICAS_BT = {"nodos": 0, "poda_factibilidad": True, "poda_optimalidad": True}
 
 
 def backtracking_cli(n, k, features, sin_poda_factibilidad=False, sin_poda_optimalidad=False):
-    """Adaptador para ALGORITMOS: recibe las opciones del CLI y devuelve solo la seleccion."""
+    """Adaptador para ALGORITMOS: recibe las opciones del CLI y devuelve solo la selección."""
     seleccion, _, nodos = backtracking(n, k, features,
                                        not sin_poda_factibilidad, not sin_poda_optimalidad)
     ESTADISTICAS_BT.update(nodos=nodos, poda_factibilidad=not sin_poda_factibilidad,
@@ -422,7 +365,7 @@ def backtracking_cli(n, k, features, sin_poda_factibilidad=False, sin_poda_optim
 # CLI (misma interfaz que main.cpp).
 # ---------------------------------------------------------------------------
 
-# Nombre -> funcion(n, k, features, **opciones) que devuelve la seleccion (base 1).
+# Nombre -> función(n, k, features, **opciones) que devuelve la selección (base 1).
 # Las opciones sin_poda_factibilidad y sin_poda_optimalidad solo le llegan a "bt".
 ALGORITMOS = {
     "pd": programacion_dinamica,
@@ -447,7 +390,7 @@ def registrar_csv(ruta, algoritmo, n, d, k, costo_total, ms):
 
 
 def guardar_seleccion(ruta, seleccion):
-    """Una sola linea con los indices separados por espacio; crea el directorio padre."""
+    """Una sola línea con los índices separados por espacio; crea el directorio padre."""
     carpeta = os.path.dirname(ruta)
     if carpeta:
         os.makedirs(carpeta, exist_ok=True)
@@ -457,8 +400,8 @@ def guardar_seleccion(ruta, seleccion):
 
 def resolver_instancia(ruta_entrada, algoritmo, ruta_csv, ruta_salida_pedida,
                        sin_poda_factibilidad=False, sin_poda_optimalidad=False):
-    # Mismo orden que main.cpp: primero se carga la instancia, despues se elige el
-    # algoritmo, asi los errores salen en el mismo orden que en el binario.
+    # Mismo orden que main.cpp: primero se carga la instancia, después se elige el
+    # algoritmo, así los errores salen en el mismo orden que en el binario.
     n, d, k, features = leer_instancia(ruta_entrada)
     print("Instancia cargada: n={} pulsos, d={} características, k={} a conservar".format(n, d, k))
 
@@ -488,7 +431,7 @@ def resolver_instancia(ruta_entrada, algoritmo, ruta_csv, ruta_salida_pedida,
             ESTADISTICAS_BT["nodos"], "si" if ESTADISTICAS_BT["poda_factibilidad"] else "no",
             "si" if ESTADISTICAS_BT["poda_optimalidad"] else "no"))
 
-    # Una seleccion invalida no se guarda ni se registra: se corta con error (exit 1).
+    # Una selección inválida no se guarda ni se registra: se corta con error (exit 1).
     if not es_valida(n, k, seleccion):
         raise RuntimeError("la selección devuelta por {} no es válida. Debe tener exactamente {} "
                            "pulsos, empezar en 1, terminar en {} y ser estrictamente creciente."
@@ -506,7 +449,7 @@ def resolver_instancia(ruta_entrada, algoritmo, ruta_csv, ruta_salida_pedida,
 
 
 class _Parser(argparse.ArgumentParser):
-    """ArgumentParser que falla como main.cpp: "Error: ..." en stderr y codigo 1 (no 2)."""
+    """ArgumentParser que falla como main.cpp: "Error: ..." en stderr y código 1 (no 2)."""
 
     def error(self, message):
         print("Error: {}".format(message), file=sys.stderr)

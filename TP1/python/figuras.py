@@ -144,6 +144,13 @@ def leyenda_abajo_manejadores(fig, manejadores, columnas):
                handlelength=1.6, columnspacing=1.0)
 
 
+def formateador_coma():
+    """Formateador de ticks con coma decimal, para los ejes lineales con decimales
+    (los logaritmicos ya se formatean aparte)."""
+    from matplotlib.ticker import FuncFormatter
+    return FuncFormatter(lambda v, _: "{:g}".format(v).replace(".", ","))
+
+
 def eje_x_log(ax, valores):
     """Eje x logaritmico con los ticks en los valores medidos y sin etiquetas menores.
     Con menos de dos decadas matplotlib etiqueta tambien los ticks menores (2x10^1,

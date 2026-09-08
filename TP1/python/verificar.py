@@ -3,11 +3,11 @@
 
 Genera instancias chicas al azar (n entre 2 y 12, d entre 1 y 4, k entre 2 y n,
 incluyendo los bordes n=2, k=2 y k=n), corre cada solver pedido con --salida a un
-archivo temporal, lee la seleccion, la valida (k indices base 1, empieza en 1,
+archivo temporal, lee la selección, la valida (k índices base 1, empieza en 1,
 termina en n, estrictamente creciente), recalcula el costo en Python y compara:
-  * cada solver contra el optimo exacto calculado aca por fuerza bruta (Python),
+  * cada solver contra el óptimo exacto calculado acá por fuerza bruta (Python),
   * los solvers entre si, con tolerancia --tol (default 1e-6).
-Las instancias que producen discrepancias (costo distinto, seleccion invalida,
+Las instancias que producen discrepancias (costo distinto, selección inválida,
 salida ilegible, error o timeout) se guardan en --carpeta con un .log al lado.
 
 Solvers disponibles con --solvers (separados por coma):
@@ -15,7 +15,7 @@ Solvers disponibles con --solvers (separados por coma):
                <binario> --instancia X --algoritmo <alg> --salida Y
   py-bt, py-pd scripts Python (--py-bt, --py-pd), invocados como
                <python> <script> --instancia X --salida Y
-Ademas se pueden agregar solvers arbitrarios con --comando NOMBRE=PLANTILLA,
+Además se pueden agregar solvers arbitrarios con --comando NOMBRE=PLANTILLA,
 donde la plantilla usa {instancia} y {salida}; sirve para probar el propio
 verificador con un solver ficticio.
 
@@ -44,23 +44,11 @@ import generador  # noqa: E402  (mismo directorio)
 # Modelo del problema en Python (independiente del C++, para poder auditarlo).
 # ---------------------------------------------------------------------------
 
-def leer_instancia(ruta):
-    with open(ruta, "r", encoding="utf-8") as archivo:
-        tokens = archivo.read().split()
-    n, d, k = int(tokens[0]), int(tokens[1]), int(tokens[2])
-    valores = [float(t) for t in tokens[3:]]
-    if len(valores) != n * d:
-        raise ValueError("instancia {}: se esperaban {} valores y hay {}".format(
-            ruta, n * d, len(valores)))
-    pulsos = [valores[i * d:(i + 1) * d] for i in range(n)]
-    return n, d, k, pulsos
-
-
 def costo_salto(pulsos, i, j):
     """c(i, j) = || f_{i+1} - f_j ||_2 con i, j en base 1 e i < j."""
     if j == i + 1:
         return 0.0
-    esperado = pulsos[i]       # f_{i+1} (base 0: indice i)
+    esperado = pulsos[i]       # f_{i+1} (base 0: índice i)
     sonado = pulsos[j - 1]     # f_j
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(esperado, sonado)))
 
@@ -85,7 +73,7 @@ def validar_seleccion(n, k, seleccion):
 
 
 def optimo_fuerza_bruta(n, k, pulsos):
-    """Optimo exacto probando todas las C(n-2, k-2) selecciones. Solo para n chico."""
+    """Óptimo exacto probando todas las C(n-2, k-2) selecciones. Solo para n chico."""
     mejor_costo = math.inf
     mejor = None
     for medio in itertools.combinations(range(2, n), k - 2):
@@ -97,7 +85,7 @@ def optimo_fuerza_bruta(n, k, pulsos):
 
 
 # ---------------------------------------------------------------------------
-# Ejecucion de solvers.
+# Ejecución de solvers.
 # ---------------------------------------------------------------------------
 
 def construir_comandos(args):
@@ -126,7 +114,7 @@ def construir_comandos(args):
 
 
 def correr_solver(plantilla, ruta_instancia, ruta_salida, timeout):
-    """Corre el solver y devuelve (seleccion o None, descripcion del error o None, stdout+stderr)."""
+    """Corre el solver y devuelve (selección o None, descripción del error o None, stdout+stderr)."""
     comando = [tok.format(instancia=ruta_instancia, salida=ruta_salida) for tok in plantilla]
     if os.path.exists(ruta_salida):
         os.remove(ruta_salida)
@@ -155,19 +143,19 @@ def correr_solver(plantilla, ruta_instancia, ruta_salida, timeout):
 
 
 # ---------------------------------------------------------------------------
-# Generacion de casos.
+# Generación de casos.
 # ---------------------------------------------------------------------------
 
 def casos_a_probar(args, rng):
-    """Primero los bordes fijos, despues instancias al azar mezclando los tres modos."""
+    """Primero los bordes fijos, después instancias al azar mezclando los tres modos."""
     fijos = [(2, 1, 2), (2, 3, 2), (3, 1, 2), (3, 1, 3), (4, 2, 4), (5, 1, 2), (6, 1, 4),
              (args.n_max, 1, 2), (args.n_max, args.d_max, args.n_max)]
     casos = []
     for n, d, k in fijos:
         if n <= args.n_max and d <= args.d_max:
             casos.append((n, d, k, "uniforme"))
-    # Ademas del generador comun se agrega el modo "repetidos": coordenadas enteras
-    # en {0, 1, 2}, asi hay pulsos exactamente iguales y muchos empates de costo.
+    # Además del generador común se agrega el modo "repetidos": coordenadas enteras
+    # en {0, 1, 2}, así hay pulsos exactamente iguales y muchos empates de costo.
     # Sirve para chequear que los solvers no dependan de como se desempata.
     modos = ["uniforme", "estructura", "adversarial", "repetidos"]
     for n, d, k in [(2, 1, 2), (4, 1, 4), (5, 1, 2), (6, 2, 3)]:
@@ -202,7 +190,7 @@ def generar_caso(n, d, k, modo, semilla, ruta):
 
 
 def resumir_cobertura(casos):
-    """Cuenta cuantos casos tocan cada borde interesante, para saber que se probo."""
+    """Cuenta cuántos casos tocan cada borde interesante, para saber qué se probó."""
     return {
         "n=2": sum(1 for n, _, _, _ in casos if n == 2),
         "k=2": sum(1 for _, _, k, _ in casos if k == 2),
@@ -289,7 +277,7 @@ def main(argv=None):
                 problemas.append("[{}] costo {:.9f} con {} pero el optimo es {:.9f} con {}".format(
                     nombre, costo, seleccion, referencia[0], referencia[1]))
 
-        # Comparacion entre solvers (todos contra el primero que respondio bien).
+        # Comparación entre solvers (todos contra el primero que respondio bien).
         if len(resultados) >= 2:
             base_nombre = next(iter(resultados))
             base_costo = resultados[base_nombre][0]

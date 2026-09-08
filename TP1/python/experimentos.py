@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Experimentacion del TP1: un unico punto de entrada con subcomandos.
+"""Experimentación del TP1: un único punto de entrada con subcomandos.
 
 Correr desde cualquier directorio con el Python del entorno virtual del repo
 (hace falta matplotlib para las figuras y librosa para reconstruir audio):
@@ -7,19 +7,19 @@ Correr desde cualquier directorio con el Python del entorno virtual del repo
   .venv/bin/python TP1/python/experimentos.py <subcomando> [--rapido] [--reps 3]
 
 Subcomandos:
-  generar   escribe todas las instancias sinteticas en TP1/input/sinteticas/<familia>/
+  generar   escribe todas las instancias sintéticas en TP1/input/sinteticas/<familia>/
             (deterministas: semilla fija por familia, n, k y d).
   e1        exactos-chicos: FB, BT y PD sobre instancias chicas, tiempo vs n por
-            algoritmo en tres familias y tres regimenes de k; verifica que los
+            algoritmo en tres familias y tres regímenes de k; verifica que los
             costos coincidan.
   e2        podas: BT en sus cuatro configuraciones, nodos visitados y tiempo vs n
             y vs k, en las tres familias.
   e3        escalado-pd: PD en C++ sobre instancias grandes, tiempo vs n, vs k y
-            vs d, mas memoria pico (maxrss).
+            vs d, más memoria pico (maxrss).
   e4        lenguajes: BT y PD en C++ y en Python sobre las mismas instancias.
   e5        audio-real: PD sobre las instancias reales con k al 50, 70 y 90 % de n,
             contra truncar y muestreo uniforme; croma vs mfcc; reconstruye audio y
-            dibuja la matriz de costos con la seleccion optima.
+            dibuja la matriz de costos con la selección óptima.
   e6        tiempos-reales: FB, BT y PD sobre prefijos de una instancia real.
   figuras   regenera todas las figuras a partir de los CSV ya calculados.
   todo      generar + e1..e6 en orden.
@@ -29,8 +29,10 @@ Cada corrida se hace por subprocess con timeout; si se agota se registra
 tiempos son la mediana de --reps corridas (3 por defecto) del tiempo que
 imprime el propio programa ("Tiempo: X ms", que mide solo resolver, sin lectura
 del archivo). Los resultados van a TP1/output/numericos/ (ignorado por git) y
-los CSV finales se copian a informe/datos/. Con --rapido se corre una version
-reducida de cada experimento para probar que todo anda de punta a punta.
+los CSV finales se copian a informe/datos/. Con --rapido se corre una versión
+reducida de cada experimento para probar que todo anda de punta a punta; en ese
+modo no se toca informe/: los CSV quedan en TP1/output/numericos/rapido/ y las
+figuras en TP1/output/numericos/rapido/figuras/.
 """
 
 import argparse
@@ -56,6 +58,7 @@ DIR_NUMERICOS = os.path.join(RAIZ, "output", "numericos")
 DIR_AUDIO_SALIDA = os.path.join(RAIZ, "output", "audio")
 DIR_DATOS = os.path.join(REPO, "informe", "datos")
 DIR_TMP = os.path.join(DIR_NUMERICOS, "tmp")
+DIR_RAPIDO = os.path.join(DIR_NUMERICOS, "rapido")
 
 sys.path.insert(0, AQUI)
 import generador  # noqa: E402
@@ -64,9 +67,9 @@ from algoritmos import costo_seleccion, leer_instancia  # noqa: E402
 FAMILIAS = ["uniforme", "estructura", "adversarial"]
 D_DEFECTO = 12
 
-# Parametros fijos de cada familia (ver generador.py). La familia "estructura" es
+# Parámetros fijos de cada familia (ver generador.py). La familia "estructura" es
 # el caso musical (secciones repetidas A B B C B B con ruido); "adversarial" son
-# vertices distintos de una grilla en orden aleatorio, sin saltos baratos.
+# vértices distintos de una grilla en orden aleatorio, sin saltos baratos.
 PARAMETROS_FAMILIA = {
     "uniforme": {},
     "estructura": {"patron": "ABBCBB", "ruido": 0.05},
@@ -120,7 +123,7 @@ def generar_sintetica(familia, n, k, d=D_DEFECTO):
 
 
 def escribir_instancia_derivada(ruta, n, d, k, lineas_pulsos):
-    """Escribe una instancia a partir de lineas ya formateadas (prefijos y cambios de k)."""
+    """Escribe una instancia a partir de líneas ya formateadas (prefijos y cambios de k)."""
     os.makedirs(os.path.dirname(ruta), exist_ok=True)
     with open(ruta, "w", encoding="utf-8") as archivo:
         archivo.write("{} {} {}\n".format(n, d, k))
@@ -240,8 +243,11 @@ class Csv:
             csv.writer(archivo).writerow([formatear(valores.get(c, "")) for c in self.columnas])
 
     def copiar_a_datos(self):
+        destino = os.path.join(DIR_DATOS, os.path.basename(self.ruta))
+        if os.path.abspath(destino) == os.path.abspath(self.ruta):
+            return  # modo --rapido: los CSV ya están en su directorio final
         os.makedirs(DIR_DATOS, exist_ok=True)
-        shutil.copy(self.ruta, os.path.join(DIR_DATOS, os.path.basename(self.ruta)))
+        shutil.copy(self.ruta, destino)
 
 
 def formatear(valor):
@@ -253,7 +259,7 @@ def formatear(valor):
 
 
 def leer_csv(nombre):
-    """Lee un CSV de output/numericos (o de informe/datos si no esta) a lista de dicts."""
+    """Lee un CSV de output/numericos (o de informe/datos si no está) a lista de dicts."""
     ruta = os.path.join(DIR_NUMERICOS, nombre)
     if not os.path.exists(ruta):
         ruta = os.path.join(DIR_DATOS, nombre)
@@ -310,9 +316,9 @@ REGIMENES_K = {
 
 
 def especificacion_e1(rapido):
-    """(familia, regimen, n, k) para E1. FB con k=n/2 tarda 22 s en n=32 y 89 s en n=34,
+    """(familia, régimen, n, k) para E1. FB con k=n/2 tarda 22 s en n=32 y 89 s en n=34,
     por eso la serie n/2 corta en 32; con k=n/4 o 3n/4 hay menos combinaciones y
-    la serie llega mas lejos."""
+    la serie llega más lejos."""
     if rapido:
         rangos = {"n/2": [6, 10, 14], "n/4": [8, 16], "3n/4": [8, 16]}
     else:
@@ -399,20 +405,16 @@ def instancias_reales():
 # ---------------------------------------------------------------------------
 
 def cmd_generar(args):
+    """Genera las instancias del modo completo y las del modo --rapido (las 180
+    versionadas en TP1/input/sinteticas), sin importar con que modo se invoque."""
     inicio = time.time()
     rutas = set()
-    for familia, _, n, k in especificacion_e1(False) + especificacion_e2(False):
-        rutas.add(generar_sintetica(familia, n, k))
-    for _, n, k, d in especificacion_e3(False):
-        rutas.add(generar_sintetica("estructura", n, k, d))
-    for _, n, k in especificacion_e4(False):
-        rutas.add(generar_sintetica("estructura", n, k))
-    if args.rapido:
-        for familia, _, n, k in especificacion_e1(True) + especificacion_e2(True):
+    for rapido in (False, True):
+        for familia, _, n, k in especificacion_e1(rapido) + especificacion_e2(rapido):
             rutas.add(generar_sintetica(familia, n, k))
-        for _, n, k, d in especificacion_e3(True):
+        for _, n, k, d in especificacion_e3(rapido):
             rutas.add(generar_sintetica("estructura", n, k, d))
-        for _, n, k in especificacion_e4(True):
+        for _, n, k in especificacion_e4(rapido):
             rutas.add(generar_sintetica("estructura", n, k))
     progreso("{} instancias sinteticas en {} ({:.1f} s)".format(
         len(rutas), os.path.relpath(DIR_SINTETICAS), time.time() - inicio))
@@ -431,7 +433,7 @@ def cmd_e1(args):
                                    "nodos"] + COLUMNAS_TIEMPOS)
     coincidencias = Csv("e1_coincidencia.csv", ["familia", "regimen", "n", "k", "costo_fb",
                                                 "costo_bt", "costo_pd", "coinciden"])
-    agotados = set()  # (familia, regimen, algoritmo) que ya dieron timeout
+    agotados = set()  # (familia, régimen, algoritmo) que ya dieron timeout
     for familia, regimen, n, k in especificacion_e1(args.rapido):
         instancia = generar_sintetica(familia, n, k)
         costos = {}
@@ -455,14 +457,14 @@ def cmd_e1(args):
 
 
 def modelo_fb(n, k, d):
-    """Cota teorica de fuerza bruta: C(n-2, k-2) combinaciones por k saltos por d."""
+    """Cota teórica de fuerza bruta: C(n-2, k-2) combinaciones por k saltos por d."""
     from math import comb
     return comb(n - 2, k - 2) * k * d
 
 
 def constante_modelo_fb(puntos):
-    """Ajusta c en ms = c * modelo_fb por minimos cuadrados en log, usando solo los
-    puntos con ms >= 1 (en los chicos domina el costo fijo de armar la seleccion)."""
+    """Ajusta c en ms = c * modelo_fb por mínimos cuadrados en log, usando solo los
+    puntos con ms >= 1 (en los chicos domina el costo fijo de armar la selección)."""
     import math
     grandes = [f for f in puntos if float(f["ms"]) >= 1] or puntos
     logs = [math.log(float(f["ms"]) / modelo_fb(int(f["n"]), int(f["k"]), int(f["d"])))
@@ -471,7 +473,7 @@ def constante_modelo_fb(puntos):
 
 
 def mediana_familias(filas, regimen, algoritmo, columna="ms"):
-    """Mediana entre las tres familias de `columna` para cada n del regimen."""
+    """Mediana entre las tres familias de `columna` para cada n del régimen."""
     import statistics
     por_n = {}
     for f in filas_ok(filas, regimen=regimen, algoritmo=algoritmo):
@@ -490,12 +492,12 @@ def figuras_e1():
         return
     import figuras as fg
 
-    # Pregunta: hasta que n llega cada exacto con k = n/2 y como crece el tiempo,
+    # Pregunta: hasta qué n llega cada exacto con k = n/2 y cómo crece el tiempo,
     # contrastando FB con su cota C(n-2, k-2) k d (misma constante en los tres paneles).
-    # Un solo panel: FB y PD hacen el mismo trabajo en las tres familias, asi que se
+    # Un solo panel: FB y PD hacen el mismo trabajo en las tres familias, así que se
     # dibujan una vez (familia con estructura) y solo BT lleva un marcador por familia.
-    # El ancho fisico (3,2 pulgadas) es el que ocupa en el informe, para que las fuentes
-    # de 8 a 9 pt se impriman a ese tamano.
+    # El ancho físico (3,2 pulgadas) es el que ocupa en el informe, para que las fuentes
+    # de 8 a 9 pt se impriman a ese tamaño.
     fig, ejes = fg.figura(paneles=1, ancho=3.2, alto=2.1)
     ax = ejes[0]
     c_fb = constante_modelo_fb(filas_ok(filas, regimen="n/2", algoritmo="fb"))
@@ -528,7 +530,7 @@ def figuras_e1():
     fg.leyenda_abajo_manejadores(fig, manejadores + fg.manejadores_familias(), columnas=2)
     fg.guardar(fig, "e1_tiempo_vs_n")
 
-    # Pregunta: como cambia el tiempo de FB y de PD con el regimen de k. Se grafica la
+    # Pregunta: cómo cambia el tiempo de FB y de PD con el régimen de k. Se grafica la
     # mediana entre las tres familias porque difieren menos del 5 % entre si.
     fig, ejes = fg.figura(paneles=2, compartir_y=False)
     for ax, algoritmo in zip(ejes, ["fb", "pd"]):
@@ -551,7 +553,7 @@ def figuras_e1():
     fg.leyenda_abajo(fig, ejes[0], columnas=4)
     fg.guardar(fig, "e1_regimenes_k")
 
-    # Pregunta: cuantos nodos visita BT con ambas podas segun familia y regimen de k.
+    # Pregunta: cuántos nodos visita BT con ambas podas según familia y régimen de k.
     fig, ejes = fg.figura(paneles=3)
     for ax, regimen in zip(ejes, ["n/4", "n/2", "3n/4"]):
         for familia in FAMILIAS:
@@ -614,10 +616,10 @@ def nodos_bt_teoricos(n, k, factibilidad):
 
 
 def resumen_e2(filas):
-    """e2_ajustes.csv: por familia y configuracion, base por unidad de n de nodos y de tiempo
+    """e2_ajustes.csv: por familia y configuración, base por unidad de n de nodos y de tiempo
     (ajuste de log2 contra n en la serie vs_n; el tiempo se ajusta con n >= 16 porque debajo
-    lo domina el costo fijo), exponente log-log de nodos, valores en n = 28 con la reduccion
-    respecto de 'ninguna', tiempo por nodo y media geometrica de nodos en la serie."""
+    lo domina el costo fijo), exponente log-log de nodos, valores en n = 28 con la reducción
+    respecto de 'ninguna', tiempo por nodo y media geométrica de nodos en la serie."""
     import math
     tabla = Csv("e2_ajustes.csv", ["familia", "configuracion", "base_nodos", "r2_nodos", "base_ms",
                                    "r2_ms", "exponente_loglog_nodos", "r2_loglog", "nodos_n28",
@@ -655,7 +657,7 @@ def resumen_e2(filas):
 def figura_e2_vs_n(filas):
     """Nodos visitados contra n con k = n/2 en un solo panel del ancho que ocupa en el
     informe. Sin podas y con solo factibilidad la cuenta es exacta e igual en las tres
-    familias, asi que se dibuja una vez; con optimalidad el color da la configuracion y
+    familias, así que se dibuja una vez; con optimalidad el color da la configuración y
     el marcador la familia."""
     import figuras as fg
     from math import comb
@@ -695,7 +697,7 @@ def figuras_e2():
     import figuras as fg
     from math import comb
     resumen_e2(filas)
-    # Pregunta: cuantos nodos ahorra cada poda (vs n con k = n/2, y vs k con n = 24) y si
+    # Pregunta: cuántos nodos ahorra cada poda (vs n con k = n/2, y vs k con n = 24) y si
     # depende de la familia. Las referencias son la cuenta exacta de nodos sin podas y la
     # cantidad de hojas factibles C(n-2, k-2), que es lo que enumera fuerza bruta.
     figura_e2_vs_n(filas)
@@ -721,15 +723,15 @@ def figuras_e2():
         ejes[0].set_ylabel("nodos visitados")
         fg.leyenda_abajo(fig, ejes[0], columnas=3)
         fg.guardar(fig, nombre)
-    # Pregunta: cuanto tiempo ahorra cada poda y por que el ahorro en tiempo es menor que el
+    # Pregunta: cuánto tiempo ahorra cada poda y por qué el ahorro en tiempo es menor que el
     # ahorro en nodos. Se muestra la familia uniforme (la peor para las podas); sin podas y
     # con solo factibilidad el tiempo es el mismo en las tres familias porque los nodos no
     # dependen de los datos. El panel derecho muestra el costo por nodo: con la poda de
-    # optimalidad cada nodo recorre candidatos j que se descartan, asi que cuesta mas.
+    # optimalidad cada nodo recorre candidatos j que se descartan, así que cuesta más.
     familia = "uniforme"
     fig, ejes = fg.figura(paneles=2, compartir_y=False)
     sin_podas = filas_ok(filas, serie="vs_n", configuracion="ninguna")
-    # Costo por nodo: mediana sobre las corridas grandes (mas de 10^5 nodos), donde no
+    # Costo por nodo: mediana sobre las corridas grandes (más de 10^5 nodos), donde no
     # pesa el costo fijo; si no hay ninguna (modo --rapido) se usan todas.
     grandes = [f for f in sin_podas if int(f["nodos"]) >= 1e5] or sin_podas
     ns_por_nodo = statistics.median([float(f["ms"]) * 1e6 / int(f["nodos"]) for f in grandes]) if grandes else 0.0
@@ -789,7 +791,7 @@ def cmd_e3(args):
 
 
 def ajuste_lineal(xs, ys):
-    """Minimos cuadrados y = a + b x. Devuelve (a, b, r2)."""
+    """Mínimos cuadrados y = a + b x. Devuelve (a, b, r2)."""
     n = len(xs)
     mx, my = sum(xs) / n, sum(ys) / n
     sxx = sum((x - mx) ** 2 for x in xs)
@@ -827,8 +829,8 @@ def figuras_e3():
     # memoria pico como k (n-k+1).
     puntos = sorted(filas_ok(filas, serie="vs_n"), key=lambda f: int(f["n"]))
     if len(puntos) >= 2:
-        # Ancho fisico igual al que ocupa en el informe (0,62 del ancho de texto).
-        fig, ejes = fg.figura(paneles=2, compartir_y=False, ancho=3.9, alto=1.8)
+        # Ancho físico igual al que ocupa en el informe (0,52 del ancho de texto).
+        fig, ejes = fg.figura(paneles=2, compartir_y=False, ancho=3.3, alto=1.6)
         ns = [int(f["n"]) for f in puntos]
         ms = [float(f["ms"]) for f in puntos]
         escala = escala_modelo(puntos)
@@ -836,16 +838,17 @@ def figuras_e3():
         fg.serie(ejes[0], ns, [m / 1000 for m in ms], "pd", etiqueta="medido")
         ejes[0].plot(ns, [escala * float(f["modelo_ops"]) / 1000 for f in puntos], "--",
                      color=fg.PALETA["modelo"], label="modelo ajustado")
-        # Ticks en potencias redondas: 750 y 1000 se pisan si se etiquetan los n medidos.
-        fg.eje_x_log(ejes[0], [n for n in ns if n in (250, 500, 1000, 3000)] or ns)
+        # Ticks en potencias redondas: a este ancho solo entran tres etiquetas.
+        fg.eje_x_log(ejes[0], [n for n in ns if n in (250, 1000, 3000)] or ns)
         ejes[0].set_yscale("log")
-        from matplotlib.ticker import FuncFormatter
-        ejes[0].yaxis.set_major_formatter(FuncFormatter(lambda v, _: ("{:g}".format(v)).replace(".", ",")))
+        ejes[0].set_yticks([0.01, 0.1, 1, 10])
+        ejes[0].yaxis.set_major_formatter(fg.formateador_coma())
         ejes[0].set_xlabel("n (pulsos), k = n/2")
         ejes[0].set_ylabel("tiempo (s)")
+        # Las curvas ocupan la diagonal de cada panel, así que la leyenda (común a los
+        # dos, el caption dice que modelo es cada uno) va debajo de la figura.
         ejes[0].text(0.97, 0.05, "pendiente: {:.2f}".format(pendiente).replace(".", ","),
                      transform=ejes[0].transAxes, ha="right", va="bottom", fontsize=8)
-        fg.leyenda(ejes[0], loc="upper left")
         memorias = memorias_de(puntos, "n")
         if memorias:
             fg.serie(ejes[1], [m[0] for m in memorias], [m[1] for m in memorias], "pd", etiqueta="medido")
@@ -853,15 +856,16 @@ def figuras_e3():
             if ajuste:
                 base, por_estado, _ = ajuste
                 ejes[1].plot(ns, [base + por_estado * int(f["k"]) * (int(f["n"]) - int(f["k"]) + 1) for f in puntos],
-                             "--", color=fg.PALETA["modelo"], label="ajuste lineal")
-        ejes[1].set_xlabel("n (pulsos), k = n/2")
-        ejes[1].set_ylabel("memoria pico (MB)")
+                             "--", color=fg.PALETA["modelo"])
+        ejes[1].set_xlabel("n (pulsos)")
+        ejes[1].set_ylabel("memoria (MB)")
         ejes[1].set_ylim(bottom=0)
-        fg.leyenda(ejes[1], loc="upper left")
+        ejes[1].yaxis.set_major_formatter(fg.formateador_coma())
+        fg.leyenda_abajo(fig, ejes[0], columnas=2)
         fg.guardar(fig, "e3_pd_vs_n")
 
-    # Pregunta: el tiempo y la memoria en funcion de k siguen la forma que predice la
-    # poda de estados, (k-2)(n-k+1)^2 y k(n-k+1), y no la cota generica k n^2 d.
+    # Pregunta: el tiempo y la memoria en función de k siguen la forma que predice la
+    # poda de estados, (k-2)(n-k+1)^2 y k(n-k+1), y no la cota genérica k n^2 d.
     puntos = sorted(filas_ok(filas, serie="vs_k"), key=lambda f: int(f["k"]))
     if len(puntos) >= 2:
         fig, ejes = fg.figura(paneles=2, alto=3.4, compartir_y=False)
@@ -872,8 +876,8 @@ def figuras_e3():
         fg.serie(ejes[0], ks, ms, "pd", etiqueta="medido (mediana de 3)")
         ejes[0].plot(ks, [escala * float(f["modelo_ops"]) for f in puntos], "--",
                      color=fg.PALETA["modelo"], label=etiqueta_modelo)
-        # La cota k n^2 d crece monotona en k; se escala para que coincida con el
-        # maximo medido y se ve que no describe la caida para k cercano a n.
+        # La cota k n^2 d crece monótona en k; se escala para que coincida con el
+        # máximo medido y se ve que no describe la caída para k cercano a n.
         k_max = ks[ms.index(max(ms))]
         ejes[0].plot(ks, [max(ms) * k / k_max for k in ks], ":", color=fg.PALETA["ninguna"],
                      label="cota k·n²·d, escalada en k = {}".format(k_max))
@@ -893,7 +897,7 @@ def figuras_e3():
         ejes[1].set_xlabel("k (pulsos conservados), n = {}".format(n))
         ejes[1].set_ylabel("memoria pico (MB)")
         ejes[1].set_ylim(bottom=0)
-        # Leyenda unica debajo con las series de los dos paneles.
+        # Leyenda única debajo con las series de los dos paneles.
         manejadores, etiquetas = [], []
         for ax in ejes:
             h, e = ax.get_legend_handles_labels()
@@ -961,7 +965,7 @@ def figuras_e4():
         return
     import statistics
     import figuras as fg
-    # Pregunta: cuanto mas tarda Python que C++ con el mismo algoritmo.
+    # Pregunta: cuánto más tarda Python que C++ con el mismo algoritmo.
     fig, ejes = fg.figura(paneles=2, compartir_y=False)
     for ax, algoritmo in zip(ejes, ["bt", "pd"]):
         for lenguaje, clave, estilo in [("cpp", algoritmo, "-"), ("python", "py-" + algoritmo, "--")]:
@@ -970,7 +974,7 @@ def figuras_e4():
                 fg.serie(ax, [int(f["n"]) for f in puntos], [float(f["ms"]) for f in puntos], clave,
                          etiqueta="C++" if lenguaje == "cpp" else "Python", estilo=estilo)
         if algoritmo == "pd":
-            # Guia de crecimiento cubico (k n^2 d con k = n/2) anclada en el primer punto de C++.
+            # Guía de crecimiento cúbico (k n^2 d con k = n/2) anclada en el primer punto de C++.
             base = sorted(filas_ok(filas, algoritmo="pd", lenguaje="cpp"), key=lambda f: int(f["n"]))
             if base:
                 n0, t0 = int(base[0]["n"]), float(base[0]["ms"])
@@ -995,7 +999,7 @@ def figuras_e4():
 
     cocientes = leer_csv("e4_cocientes.csv")
     if cocientes:
-        # Ancho fisico igual al que ocupa en el informe (0,42 del ancho de texto); las
+        # Ancho físico igual al que ocupa en el informe (0,42 del ancho de texto); las
         # medianas van en el caption.
         fig, ejes = fg.figura(paneles=1, ancho=2.65, alto=2.2)
         for algoritmo in ["bt", "pd"]:
@@ -1010,7 +1014,10 @@ def figuras_e4():
                 ejes[0].axhline(mediana, color=fg.PALETA[algoritmo], linestyle=":", linewidth=1.0, alpha=0.8)
             fg.serie(ejes[0], [int(f["n"]) for f in puntos], [float(f["cociente"]) for f in puntos],
                      algoritmo, etiqueta=etiqueta)
-        fg.eje_x_log(ejes[0], [int(f["n"]) for f in cocientes])
+        # Ticks explicitos: en un panel de 2,65 in las etiquetas 400, 600 y 1000 se pisan.
+        ns_medidos = sorted({int(f["n"]) for f in cocientes})
+        ticks = [n for n in (25, 50, 100, 200, 400, 1000) if ns_medidos[0] <= n <= ns_medidos[-1]]
+        fg.eje_x_log(ejes[0], ticks or ns_medidos)
         ejes[0].set_xlabel("n (pulsos), k = n/2")
         ejes[0].set_ylabel("tiempo Python / tiempo C++")
         ejes[0].set_ylim(bottom=0)
@@ -1027,7 +1034,7 @@ def seleccion_truncar(n, k):
 
 
 def seleccion_uniforme(n, k):
-    """k indices equiespaciados entre 1 y n. Con k <= n el paso es >= 1, asi que el
+    """k índices equiespaciados entre 1 y n. Con k <= n el paso es >= 1, así que el
     redondeo deja la secuencia estrictamente creciente."""
     if k == 1:
         return [1]
@@ -1130,9 +1137,9 @@ def cmd_e5(args):
             figura_estructura(base, costos, selecciones[(base, "croma", 0.7)][0], fronteras)
     tabla.copiar_a_datos()
 
-    # Croma vs mfcc en los dialogos: mismas escenas, mismos k. El jaccard de las selecciones
+    # Croma vs mfcc en los diálogos: mismas escenas, mismos k. El jaccard de las selecciones
     # tiene piso (2p - 1) / 1 cuando ambas conservan p n pulsos (0,8 con p = 0,9 aunque los
-    # descartes sean disjuntos), asi que se informa tambien el jaccard de los descartados.
+    # descartes sean disjuntos), así que se informa también el jaccard de los descartados.
     comparacion = Csv("e5_croma_mfcc.csv", ["nombre", "proporcion", "k", "saltos_croma", "saltos_mfcc",
                                             "mejora_croma", "mejora_mfcc", "jaccard", "jaccard_descartados",
                                             "descartado_s", "solapamiento_s"])
@@ -1175,18 +1182,18 @@ def reconstruir_audio(base, seleccion, nombre_instancia, etiqueta):
 
 
 def figura_estructura(base, costos, seleccion, fronteras=None):
-    """Matriz de costos c(i, j) = ||f_{i+1} - f_j|| con los saltos de la seleccion optima.
+    """Matriz de costos c(i, j) = ||f_{i+1} - f_j|| con los saltos de la selección óptima.
     Pregunta: los saltos caen en zonas de costo bajo lejos de la diagonal, es decir entre
     secciones repetidas del tema."""
     import numpy as np
     import figuras as fg
     n = costos.shape[1]
-    # Ancho fisico igual al que ocupa en el informe (0,42 del ancho de texto).
+    # Ancho físico igual al que ocupa en el informe (0,42 del ancho de texto).
     fig, ejes = fg.figura(paneles=1, ancho=2.65, alto=2.3)
     ax = ejes[0]
     ax.grid(False)
-    # fila i (base 1, 1..n-1) y columna j (1..n): distancia entre el pulso que deberia
-    # sonar despues de i y el pulso j al que se salta.
+    # fila i (base 1, 1..n-1) y columna j (1..n): distancia entre el pulso que debería
+    # sonar después de i y el pulso j al que se salta.
     imagen = ax.imshow(costos, origin="lower", cmap="viridis", extent=(0.5, n + 0.5, 0.5, n - 0.5),
                        aspect="auto", interpolation="nearest")
     fig.colorbar(imagen, ax=ax, label="c(i, j)", shrink=0.85)
@@ -1202,15 +1209,15 @@ def figura_estructura(base, costos, seleccion, fronteras=None):
                                       edgecolors=fg.PALETA["acento"], linewidths=1.8,
                                       label="salto (i, j) de la selección óptima"))
     ax.set_xlabel("j (pulso al que se salta)")
-    ax.set_ylabel("i (último pulso antes del salto)")
+    ax.set_ylabel("i (pulso previo al salto)")
     if fronteras is not None:
-        # Eje superior en segundos de la grabacion original (el pulso p empieza en
+        # Eje superior en segundos de la grabación original (el pulso p empieza en
         # fronteras[p-1]; la instancia arranca en el primer onset, no en 0).
         indices = np.arange(1, n + 1)
         segundos = np.array(fronteras[:n])
         arriba = ax.secondary_xaxis("top", functions=(lambda p: np.interp(p, indices, segundos),
                                                       lambda s: np.interp(s, segundos, indices)))
-        # Ticks solo dentro del rango de la grabacion: fuera de el np.interp satura y
+        # Ticks solo dentro del rango de la grabación: fuera de el np.interp satura y
         # matplotlib apilaria etiquetas en los bordes.
         from matplotlib.ticker import FixedLocator, MaxNLocator
         candidatos = MaxNLocator(nbins=8, steps=[1, 2, 5, 10]).tick_values(segundos[0], segundos[-1])
@@ -1229,7 +1236,7 @@ def figuras_e5():
     import numpy as np
     import figuras as fg
     filas = [f for f in filas if f["estado"] == "ok"]
-    # Pregunta: cuanto mejora el optimo a truncar y a muestrear uniforme en cada grabacion.
+    # Pregunta: cuánto mejora el óptimo a truncar y a muestrear uniforme en cada grabación.
     # Se grafican cocientes, no costos absolutos: croma y mfcc tienen escalas distintas.
     orden = list(AUDIO_DE)
     claves = sorted(set((f["nombre"], f["caracteristicas"]) for f in filas),
@@ -1247,31 +1254,34 @@ def figuras_e5():
         return float(fila[0][columna]) if fila else np.nan
 
     if claves:
-        # Ancho fisico igual al que ocupa en el informe (0,55 del ancho de texto).
-        fig, ejes = fg.figura(paneles=2, compartir_y=False, ancho=3.45, alto=2.7)
+        # Ancho físico igual al que ocupa en el informe (0,55 del ancho de texto). Barras
+        # horizontales: con once instancias las etiquetas rotadas no se leen a ese ancho,
+        # en el eje y quedan horizontales a 8 pt y compartidas por los dos paneles.
+        fig, ejes = fg.figura(paneles=2, compartir_y=True, ancho=3.45, alto=2.3)
         ancho = 0.27
-        x = np.arange(len(claves))
-        for desplazamiento, proporcion, alfa in zip([-ancho, 0, ancho], PROPORCIONES_E5, fg.ALFAS_TRES):
+        y = -np.arange(len(claves))  # la primera instancia arriba
+        for desplazamiento, proporcion, alfa in zip([ancho, 0, -ancho], PROPORCIONES_E5, fg.ALFAS_TRES):
             vs_truncar = [valor(nb, car, proporcion, "costo_optimo") / valor(nb, car, proporcion, "costo_truncar")
                           for nb, car in claves]
             vs_uniforme = [valor(nb, car, proporcion, "costo_uniforme") / valor(nb, car, proporcion, "costo_optimo")
                            for nb, car in claves]
-            ejes[0].bar(x + desplazamiento, vs_truncar, width=ancho, color=fg.PALETA["optimo"], alpha=alfa,
-                        label="k = {:.0f} %".format(100 * proporcion))
-            ejes[1].bar(x + desplazamiento, vs_uniforme, width=ancho, color=fg.PALETA["optimo"], alpha=alfa)
-        ejes[0].axhline(1, color=fg.PALETA["truncar"], lw=0.8, ls="--")
-        ejes[0].set_ylabel("óptimo / truncar")
-        ejes[0].set_ylim(0, 1.05)
-        ejes[1].set_yscale("log")
-        ejes[1].set_ylabel("uniforme / óptimo")
+            ejes[0].barh(y + desplazamiento, vs_truncar, height=ancho, color=fg.PALETA["optimo"], alpha=alfa,
+                         label="k = {:.0f} %".format(100 * proporcion))
+            ejes[1].barh(y + desplazamiento, vs_uniforme, height=ancho, color=fg.PALETA["optimo"], alpha=alfa)
+        ejes[0].axvline(1, color=fg.PALETA["truncar"], lw=0.8, ls="--")
+        ejes[0].set_xlabel("óptimo / truncar")
+        ejes[0].set_xlim(0, 1.05)
+        ejes[0].xaxis.set_major_formatter(fg.formateador_coma())
+        ejes[1].set_xscale("log")
+        ejes[1].set_xlabel("uniforme / óptimo")
+        ejes[0].set_yticks(y)
+        ejes[0].set_yticklabels(etiquetas, fontsize=8)
         for ax in ejes:
-            ax.set_xticks(x)
-            ax.set_xticklabels(etiquetas, rotation=60, ha="right", fontsize=7)
-            ax.grid(False, axis="x")
+            ax.grid(False, axis="y")
         fg.leyenda_abajo(fig, ejes[0])
         fg.guardar(fig, "e5_baselines")
 
-    # Pregunta: en dialogos, croma y mfcc descartan los mismos tramos?
+    # Pregunta: en diálogos, croma y mfcc descartan los mismos tramos?
     comparacion = leer_csv("e5_croma_mfcc.csv")
     if comparacion and "jaccard_descartados" in comparacion[0]:
         fig, ejes = fg.figura(paneles=2, compartir_y=False, alto=3.1)
@@ -1286,7 +1296,7 @@ def figuras_e5():
         ejes[0].set_ylabel("Jaccard de los descartados")
         ejes[0].set_ylim(-0.03, 1.03)
         fg.leyenda(ejes[0], loc="upper right")
-        # Linea de tiempo al 70 %: en gris la escena entera, en color los tramos descartados.
+        # Línea de tiempo al 70 %: en gris la escena entera, en color los tramos descartados.
         ax = ejes[1]
         dir_instancias = os.path.join(DIR_NUMERICOS, "instancias_e5")
         nombre_car = {"croma": "croma", "mfcc": "MFCC"}
@@ -1355,12 +1365,6 @@ def cmd_e6(args):
     figuras_e6()
 
 
-def modelo_fb(n, k, d):
-    """Operaciones del modelo de fuerza bruta: C(n-2, k-2) selecciones de costo k d cada una."""
-    from math import comb
-    return comb(n - 2, k - 2) * k * d
-
-
 def figuras_e6():
     filas = leer_csv("e6_tiempos_reales.csv")
     if not filas:
@@ -1373,19 +1377,19 @@ def figuras_e6():
         return sorted(filas_ok(filas, algoritmo=algoritmo), key=lambda f: int(f["n"]))
 
     def escala(puntos, modelo, n_min):
-        # ms por operacion del modelo: mediana sobre los prefijos con n >= n_min,
+        # ms por operación del modelo: mediana sobre los prefijos con n >= n_min,
         # donde el costo fijo por corrida ya no pesa.
         cocientes = [float(f["ms"]) / modelo(int(f["n"]), int(f["k"]), d)
                      for f in puntos if int(f["n"]) >= n_min]
         return statistics.median(cocientes) if cocientes else 0.0
 
-    # Pregunta: hasta que n llega cada exacto en un tema real y si el tiempo sigue
+    # Pregunta: hasta qué n llega cada exacto en un tema real y si el tiempo sigue
     # el modelo de operaciones de cada uno (FB: C(n-2,k-2) k d; PD: (k-2)(n-k+1)^2 d).
-    # Ancho fisico igual al que ocupa en el informe (0,47 del ancho de texto); las
-    # formulas de los modelos van en el caption.
+    # Ancho físico igual al que ocupa en el informe (0,47 del ancho de texto); las
+    # fórmulas de los modelos van en el caption.
     fig, ejes = fg.figura(paneles=1, ancho=3.0, alto=2.1)
     ax = ejes[0]
-    # (modelo, n minimo del ajuste, n desde donde se dibuja, etiqueta)
+    # (modelo, n mínimo del ajuste, n desde donde se dibuja, etiqueta)
     modelos = {"fb": (modelo_fb, 16, 12, "modelo FB"),
                "pd": (modelo_pd, 100, 40, "modelo PD")}
     for algoritmo in ["fb", "bt", "pd"]:
@@ -1409,7 +1413,7 @@ def figuras_e6():
     fg.leyenda_abajo(fig, ax, columnas=2)
     fg.guardar(fig, "e6_tiempos_reales")
 
-    # Pregunta: por que BT es erratico en el tema real. Nodos visitados y cociente
+    # Pregunta: por qué BT es errático en el tema real. Nodos visitados y cociente
     # de tiempo contra PD sobre los mismos prefijos.
     bt = puntos_de("bt")
     pd = {int(f["n"]): float(f["ms"]) for f in puntos_de("pd")}
@@ -1450,6 +1454,18 @@ def cmd_figuras(args):
                                   leer_fronteras(base))
 
 
+def configurar_rapido(con_figuras):
+    """En modo --rapido nada se escribe en informe/: los CSV, los temporales y las
+    figuras van a TP1/output/numericos/rapido/ para no pisar los datos del informe."""
+    global DIR_NUMERICOS, DIR_TMP, DIR_DATOS
+    DIR_NUMERICOS = DIR_RAPIDO
+    DIR_TMP = os.path.join(DIR_RAPIDO, "tmp")
+    DIR_DATOS = DIR_RAPIDO
+    if con_figuras:
+        import figuras
+        figuras.DIR_FIGURAS = os.path.join(DIR_RAPIDO, "figuras")
+
+
 def cmd_todo(args):
     inicio = time.time()
     cmd_generar(args)
@@ -1477,6 +1493,7 @@ def main(argv=None):
         args.timeout = defectos.get(args.subcomando, 60)
     if args.rapido:
         args.reps = 1
+        configurar_rapido(args.subcomando != "generar")
     funciones = {"generar": cmd_generar, "e1": cmd_e1, "e2": cmd_e2, "e3": cmd_e3, "e4": cmd_e4,
                  "e5": cmd_e5, "e6": cmd_e6, "figuras": cmd_figuras, "todo": cmd_todo}
     funciones[args.subcomando](args)

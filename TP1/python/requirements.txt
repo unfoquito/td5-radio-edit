@@ -1,6 +1,9 @@
-# Dependencias de extraer.py y del backend mp3 de reconstruir.py.
-# algoritmos.py, generador.py y verificar.py NO las necesitan:
-# funcionan con la biblioteca estandar de Python.
+# Dependencias de los scripts de Python del TP1.
+# algoritmos.py, generador.py y verificar.py NO necesitan nada de esto:
+# funcionan con la biblioteca estándar de Python.
+# experimentos.py necesita matplotlib (para las figuras).
+# extraer.py y la lectura de mp3 de reconstruir.py necesitan librosa, numpy y soundfile.
+matplotlib>=3.7
 librosa>=0.10
 numpy>=1.24
 soundfile>=0.12
