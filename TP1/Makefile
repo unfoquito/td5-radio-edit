@@ -1,3 +1,5 @@
+# En macOS g++ es un alias de clang (Apple clang); en Linux es gcc. Ambos aceptan
+# las mismas opciones y compilan sin advertencias.
 CXX      = g++
 # -ffp-contract=off: sin esta opción clang en arm64 fusiona "suma += dif*dif" de
 # Instancia::costo en una FMA y la norma difiere en 1 ulp respecto de otras
@@ -13,6 +15,9 @@ SOURCES  = $(SRCDIR)/main.cpp \
            $(SRCDIR)/FuerzaBruta.cpp \
            $(SRCDIR)/Backtracking.cpp \
            $(SRCDIR)/ProgramacionDinamica.cpp
+# Los encabezados son dependencia del binario para que editar uno dispare la
+# recompilación, pero no se pasan al compilador.
+HEADERS  = $(wildcard $(SRCDIR)/*.h)
 
 TARGET = radioedit
 
@@ -20,8 +25,8 @@ TARGET = radioedit
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+$(TARGET): $(SOURCES) $(HEADERS)
+	$(CXX) $(CXXFLAGS) -o $@ $(SOURCES)
 
 # ─── Ejecución ────────────────────────────────────────────────────────────────
 

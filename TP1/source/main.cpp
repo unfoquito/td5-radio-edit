@@ -24,7 +24,9 @@ void registrarCsv(const std::string& ruta, const std::string& algoritmo,
     bool existe = std::ifstream(ruta).good();
 
     std::ofstream csv(ruta, std::ios::app);
-    if (!csv.is_open()) return;
+    if (!csv.is_open()) {
+        throw std::runtime_error("no se pudo abrir el archivo CSV " + ruta);
+    }
 
     if (!existe) csv << "algoritmo,n,d,k,costo,ms\n";
     csv << algoritmo << "," << instancia.n() << "," << instancia.d() << ","
